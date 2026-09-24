@@ -1,6 +1,6 @@
 # Calcura Classroom
 
-Calcura Classroom is the future teacher and institutional control plane for Calcura. The repository has completed **Phase 0: Engineering foundation** and **Phase 1: Workspace + Classroom schema + RLS foundation** locally. It is not yet a classroom management product, and the migration has not been applied to the hosted Supabase project.
+Calcura Classroom is the teacher and institutional control plane for Calcura. **Phase 0: Engineering foundation**, **Phase 1: Workspace + Classroom schema + RLS**, and **Phase 2: Teacher class management** are complete. Teachers can create and manage classes, share join codes, and view active enrollment counts. The Classroom schema has not been deployed to the hosted Supabase project.
 
 ## Repository responsibilities
 
@@ -57,7 +57,7 @@ npm run supabase -- status
 npm run supabase -- stop
 ```
 
-The local migration creates workspaces, staff membership, classes, enrollments, personal workspace bootstrap, join codes, and RLS. Starting the local stack requires Docker:
+The local migration creates workspaces, staff membership, classes, enrollments, personal workspace bootstrap, join codes, and RLS. It is the data boundary used by the teacher class-management surface, but has not been deployed remotely. Starting the local stack requires Docker:
 
 ```bash
 npm run supabase:start
@@ -67,7 +67,7 @@ npm run types:db
 npm run supabase:stop
 ```
 
-These commands target the local stack only. Do not run linked resets, pushes, or migration-history repair. The hosted Calcura schema must first be baselined and reconciled; production Supabase remains untouched in Phase 1. See [Development](docs/DEVELOPMENT.md), [RLS security model](docs/RLS_SECURITY_MODEL.md), and [Supabase baseline](docs/SUPABASE_BASELINE.md).
+These commands target the local stack only. Do not run linked resets, pushes, or migration-history repair. The hosted Calcura schema must first be baselined and reconciled; production Supabase remains untouched. See [Development](docs/DEVELOPMENT.md), [RLS security model](docs/RLS_SECURITY_MODEL.md), and [Supabase baseline](docs/SUPABASE_BASELINE.md).
 
 ## Security and architecture
 
@@ -77,4 +77,4 @@ Every exposed Supabase table requires explicit grants and RLS. A publishable key
 
 ## Roadmap
 
-The planned order is recorded in [Roadmap](docs/ROADMAP.md). The next phase is **Phase 2 — Teacher Class Management UI**. Assignments, analytics, billing, plans, entitlements, Team, School, and University are not implemented.
+The planned order is recorded in [Roadmap](docs/ROADMAP.md). The next phase is **Phase 3 — Assignment Model + Teacher Assignment Builder**. Assignments, analytics, billing, plans, entitlements, Team, School, and University are not implemented.

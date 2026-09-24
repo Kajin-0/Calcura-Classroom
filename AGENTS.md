@@ -10,6 +10,7 @@ This repository is the teacher and institutional control plane. Read `README.md`
 - Database configuration and migrations: `supabase/config.toml` and `supabase/migrations/`.
 - Database policy/RPC security boundary: `docs/RLS_SECURITY_MODEL.md` and `supabase/tests/database/`.
 - Typed database-facing behavior: `src/features/workspaces/`, `src/features/classes/`, and generated `src/types/database.generated.ts`.
+- Authenticated teacher shell and class routes: `src/app/TeacherLayout.tsx`, `src/app/routes.tsx`, and feature-scoped class/workspace pages and hooks.
 - Unit, integration, and browser checks: `tests/`.
 - Architecture decisions and cross-repository contracts: `docs/`.
 

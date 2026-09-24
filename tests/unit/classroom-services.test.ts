@@ -2,8 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../../src/types/database.generated';
 import {
+  countActiveClassEnrollments,
   createClass,
+  getClassById,
   joinClassByCode,
+  listWorkspaceClasses,
+  renameClass,
+  setClassStatus,
 } from '../../src/features/classes/classService';
 import { ensurePersonalWorkspace } from '../../src/features/workspaces/workspaceService';
 import { mapClassroomError } from '../../src/lib/supabase/serviceResult';
@@ -103,6 +108,101 @@ describe('Classroom database service boundaries', () => {
       error: { code: 'invalid_class_name' },
     });
     expect(client.from).not.toHaveBeenCalled();
+  });
+
+  it('loads one permitted class summary and maps an inaccessible class safely', async () => {
+    const builder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: classRow, error: null }),
+    };
+    const client = clientMock({ from: vi.fn().mockReturnValue(builder) });
+    await expect(getClassById('class-a', client)).resolves.toEqual({
+      ok: true,
+      value: classRow,
+    });
+    expect(builder.select).toHaveBeenCalledWith(
+      'id, workspace_id, name, status, created_at, updated_at',
+    );
+    expect(builder.eq).toHaveBeenCalledWith('id', 'class-a');
+
+    builder.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    await expect(getClassById('foreign-class', client)).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'class_not_found' },
+    });
+  });
+
+  it('uses an exact filtered head count for active enrollments', async () => {
+    const builder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      then: undefined,
+    };
+    Object.assign(builder, {
+      then: (resolve: (value: unknown) => unknown) =>
+        resolve({ count: 7, error: null }),
+    });
+    const client = clientMock({ from: vi.fn().mockReturnValue(builder) });
+
+    await expect(
+      countActiveClassEnrollments('class-a', client),
+    ).resolves.toEqual({
+      ok: true,
+      value: 7,
+    });
+    expect(client.from).toHaveBeenCalledWith('class_enrollments');
+    expect(builder.select).toHaveBeenCalledWith('class_id', {
+      count: 'exact',
+      head: true,
+    });
+    expect(builder.eq).toHaveBeenNthCalledWith(1, 'class_id', 'class-a');
+    expect(builder.eq).toHaveBeenNthCalledWith(2, 'status', 'active');
+  });
+
+  it('sends only mutable class columns for rename and lifecycle updates', async () => {
+    const builder = {
+      update: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: classRow, error: null }),
+    };
+    const client = clientMock({ from: vi.fn().mockReturnValue(builder) });
+
+    await expect(
+      renameClass('class-a', '  Algebra II ', client),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: classRow,
+    });
+    expect(builder.update).toHaveBeenCalledWith({ name: 'Algebra II' });
+    expect(builder.eq).toHaveBeenCalledWith('id', 'class-a');
+
+    await setClassStatus('class-a', 'archived', client);
+    expect(builder.update).toHaveBeenLastCalledWith({ status: 'archived' });
+    await setClassStatus('class-a', 'active', client);
+    expect(builder.update).toHaveBeenLastCalledWith({ status: 'active' });
+    expect(builder.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ workspace_id: expect.anything() }),
+    );
+  });
+
+  it('orders class lists by most recently updated first', async () => {
+    const builder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockResolvedValue({ data: [classRow], error: null }),
+    };
+    const client = clientMock({ from: vi.fn().mockReturnValue(builder) });
+    await expect(
+      listWorkspaceClasses('workspace-a', client),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: [classRow],
+    });
+    expect(builder.order).toHaveBeenCalledWith('updated_at', {
+      ascending: false,
+    });
   });
 
   it('passes join-code formatting to the database normalizer', async () => {

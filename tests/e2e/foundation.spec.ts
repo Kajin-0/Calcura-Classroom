@@ -3,6 +3,9 @@ import { expect, test } from '@playwright/test';
 test('loads the classroom sign-in route and explains missing local configuration', async ({
   page,
 }) => {
+  // Cold Chromium startup and first-page navigation can exceed the default
+  // per-test budget on this VPS; the overall command remains externally capped.
+  test.setTimeout(240_000);
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.goto('/signin');

@@ -15,6 +15,7 @@ export type ClassSummary = Pick<
   ClassRow,
   'id' | 'workspace_id' | 'name' | 'status' | 'created_at' | 'updated_at'
 >;
+export type ClassStatus = 'active' | 'archived';
 export type EnrollmentSummary = Pick<
   EnrollmentRow,
   'class_id' | 'student_user_id' | 'status' | 'joined_at' | 'updated_at'
@@ -70,12 +71,116 @@ export async function listWorkspaceClasses(
       .from('classes')
       .select('id, workspace_id, name, status, created_at, updated_at')
       .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: true });
+      .order('updated_at', { ascending: false });
   } catch (error) {
     return { ok: false, error: mapClassroomError(error) };
   }
   const { data, error } = response;
   if (error) return { ok: false, error: mapClassroomError(error) };
+
+  return { ok: true, value: data };
+}
+
+export async function getClassById(
+  classId: string,
+  client: Client | null = getSupabaseClient(),
+): Promise<ServiceResult<ClassSummary>> {
+  const resolved = resolveClient(client);
+  if (!resolved.ok) return resolved;
+
+  let response;
+  try {
+    response = await resolved.value
+      .from('classes')
+      .select('id, workspace_id, name, status, created_at, updated_at')
+      .eq('id', classId)
+      .maybeSingle();
+  } catch (error) {
+    return { ok: false, error: mapClassroomError(error) };
+  }
+  const { data, error } = response;
+  if (error) return { ok: false, error: mapClassroomError(error) };
+  if (!data) return failure('class_not_found');
+
+  return { ok: true, value: data };
+}
+
+export async function countActiveClassEnrollments(
+  classId: string,
+  client: Client | null = getSupabaseClient(),
+): Promise<ServiceResult<number>> {
+  const resolved = resolveClient(client);
+  if (!resolved.ok) return resolved;
+
+  let response;
+  try {
+    response = await resolved.value
+      .from('class_enrollments')
+      .select('class_id', { count: 'exact', head: true })
+      .eq('class_id', classId)
+      .eq('status', 'active');
+  } catch (error) {
+    return { ok: false, error: mapClassroomError(error) };
+  }
+  const { count, error } = response;
+  if (error) return { ok: false, error: mapClassroomError(error) };
+
+  return { ok: true, value: count ?? 0 };
+}
+
+export async function renameClass(
+  classId: string,
+  name: string,
+  client: Client | null = getSupabaseClient(),
+): Promise<ServiceResult<ClassSummary>> {
+  const resolved = resolveClient(client);
+  if (!resolved.ok) return resolved;
+
+  const normalizedName = name.trim();
+  if (normalizedName.length < 1 || normalizedName.length > 120) {
+    return failure('invalid_class_name');
+  }
+
+  let response;
+  try {
+    response = await resolved.value
+      .from('classes')
+      .update({ name: normalizedName })
+      .eq('id', classId)
+      .select('id, workspace_id, name, status, created_at, updated_at')
+      .maybeSingle();
+  } catch (error) {
+    return { ok: false, error: mapClassroomError(error) };
+  }
+  const { data, error } = response;
+  if (error) return { ok: false, error: mapClassroomError(error) };
+  if (!data) return failure('class_not_found');
+
+  return { ok: true, value: data };
+}
+
+export async function setClassStatus(
+  classId: string,
+  status: ClassStatus,
+  client: Client | null = getSupabaseClient(),
+): Promise<ServiceResult<ClassSummary>> {
+  const resolved = resolveClient(client);
+  if (!resolved.ok) return resolved;
+
+  let response;
+  try {
+    response = await resolved.value
+      .from('classes')
+      .update({ status })
+      .eq('id', classId)
+      .select('id, workspace_id, name, status, created_at, updated_at')
+      .maybeSingle();
+  } catch (error) {
+    return { ok: false, error: mapClassroomError(error) };
+  }
+  const { data, error } = response;
+  if (error) return { ok: false, error: mapClassroomError(error) };
+  if (!data) return failure('class_not_found');
 
   return { ok: true, value: data };
 }

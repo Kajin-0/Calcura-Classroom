@@ -10,6 +10,8 @@ npm run dev
 
 The app handles missing or invalid Supabase settings without a runtime crash. Add local values only to `.env.local`; it is ignored by Git. A valid project URL and publishable key are needed to contact the shared Auth service.
 
+The authenticated `/app` route lazily bootstraps a personal workspace and provides class creation, class details, join-code copying, enrollment counts, rename, archive, and reactivation. It uses the existing Phase 1 local schema; do not deploy that schema to the hosted project until its baseline has been reconciled.
+
 ## Validation
 
 ```bash

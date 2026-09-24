@@ -14,6 +14,8 @@ Postgres with grants + RLS
 
 The browser owns presentation and short-lived interaction state. Supabase Auth owns identity and session issuance. Postgres grants and row policies together are the authorization boundary for exposed data. Phase 1 adds a lazy personal-workspace RPC and a narrow join-by-code RPC; no privileged credentials enter the browser. Future Edge Functions handle trusted operations that cannot safely run through narrowly scoped database operations.
 
+The Phase 2 teacher surface resolves the authenticated user's personal workspace once at the `/app` boundary, then reads and mutates only the classes visible through that workspace's staff membership. Class join codes are fetched through the staff-only `get_class_join_code` RPC. Student counts use exact, status-filtered enrollment counts; student identities are not exposed by this UI.
+
 The local Phase 1 tenancy model is `Auth user → workspace membership (staff)` and `Auth user → class enrollment (student)`. Students do not become workspace members. `classroom_private` holds RLS helpers and is not an exposed Data API schema. Hosted schema reconciliation is still required before deploying these migrations.
 
 ## Repository ownership
