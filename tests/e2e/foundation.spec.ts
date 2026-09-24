@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('loads the classroom sign-in route and explains missing local configuration', async ({
+test('loads the classroom sign-in route with the isolated test configuration', async ({
   page,
 }) => {
   // Cold Chromium startup and first-page navigation can exceed the default
@@ -11,8 +11,7 @@ test('loads the classroom sign-in route and explains missing local configuration
   await page.goto('/signin');
   await expect(page).toHaveTitle('Calcura Classroom');
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('VITE_SUPABASE_URL');
-  await expect(page.getByLabel('Email address')).toBeDisabled();
+  await expect(page.getByLabel('Email address')).toBeEnabled();
   expect(pageErrors).toEqual([]);
 });
 
