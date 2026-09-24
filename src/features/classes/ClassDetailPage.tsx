@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useWorkspace } from '../workspaces/useWorkspace';
+import { ClassAssignmentsSection } from '../assignments/ClassAssignmentsSection';
 import { formatJoinCode } from './classFormatters';
 import {
   countActiveClassEnrollments,
@@ -365,6 +366,11 @@ function ClassDetailContent({ classId }: { classId: string }) {
             </div>
           </div>
         </section>
+
+        <ClassAssignmentsSection
+          classId={classItem.id}
+          active={classItem.status === 'active'}
+        />
 
         <section
           className="detail-section class-management"

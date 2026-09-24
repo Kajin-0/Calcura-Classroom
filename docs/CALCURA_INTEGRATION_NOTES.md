@@ -24,6 +24,21 @@ Potential future analytics concepts are summary rates/counts, skill and techniqu
 
 Calcura will eventually add class join, assigned-work discovery, assignment launch, and versioned learning-event submission to its student experience. It will continue to generate problems, run solving interactions, and decide correctness. Contract design and student-side changes belong to the later student integration phase. Staff will also eventually need a privacy-reviewed student display identity; do not copy Auth emails into enrollment rows as a shortcut.
 
+## Assignment activity V1 capability mapping
+
+The Phase 3 product-owned contract keys in `docs/ASSIGNMENT_ACTIVITY_CONTRACT.md` were checked against these current Calcura exports (read-only inspection; this repository was not modified):
+
+| Classroom activity key              | Current Calcura capability | Source                                                  |
+| ----------------------------------- | -------------------------- | ------------------------------------------------------- |
+| `integration.basic_trig.v1`         | `generateBasicTrig`        | `services/math/domains/integration/basicTrig.ts`        |
+| `integration.u_substitution.v1`     | `generateUSub`             | `services/math/domains/integration/substitution.ts`     |
+| `integration.log_u_substitution.v1` | `generateLogUSub`          | `services/math/domains/integration/substitution.ts`     |
+| `integration.by_parts.v1`           | `generateByParts`          | `services/math/domains/integration/byParts.ts`          |
+| `integration.inverse_trig.v1`       | `generateInverseTrig`      | `services/math/domains/integration/inverseTrig.ts`      |
+| `integration.partial_fractions.v1`  | `generatePartialFractions` | `services/math/domains/integration/partialFractions.ts` |
+
+These function names are a current implementation mapping only, not durable Classroom IDs. Classroom assignments persist their contract key/version and requested problem count. Calcura remains the single math engine and may assign a finer generated skill taxonomy after it creates a problem.
+
 ## Future change and risk
 
 Calcura currently stores most practice performance locally. Cloud classroom analytics will require an intentional synchronization and consent/privacy design. Do not retrofit cloud upload or alter student auth/performance behavior during this database foundation phase. The integration phase must define event minimization, offline retry, duplicate handling, deletion/export, and classroom authorization before any upload path is enabled.

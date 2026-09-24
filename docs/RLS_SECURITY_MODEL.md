@@ -1,6 +1,6 @@
-# Phase 1 RLS and database security model
+# Phase 1 + Phase 3 RLS and database security model
 
-**Scope:** Local Phase 1 schema and RLS implementation. The hosted Calcura database has not been baselined or changed.
+**Scope:** Local Phase 1 workspace/class and Phase 3 assignment schema/RLS implementations. The hosted Calcura database has not been baselined or changed.
 
 ## Access boundaries
 
@@ -40,6 +40,25 @@ The migration uses SECURITY DEFINER only for narrowly scoped operations that mus
 - `public.ensure_personal_workspace()`, `public.get_class_join_code(uuid)`, and `public.join_class_by_code(text)` are the user-facing operations described above.
 
 All use an empty fixed `search_path`, schema-qualified objects, no dynamic SQL, and explicit execution grants. Private helpers are not exposed by PostgREST. No helper accepts an arbitrary user UUID or performs broad administrator checks.
+
+## Phase 3 assignments and practice blocks
+
+| Table              | Workspace staff                                                                                                                                               | Active enrolled student                                                | Unrelated user / anon |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------- |
+| `assignments`      | Read draft, published, archived; create draft only in an active class/workspace; update title/due date; lifecycle through narrow RPCs; no direct DELETE grant | Read published only when the class/workspace and enrollment are active | No access             |
+| `assignment_items` | Read all statuses; add/update/remove only while the parent assignment is draft; reorder only through the atomic RPC                                           | Read practice blocks only for a visible published assignment           | No access             |
+
+Assignments are class-scoped. The INSERT policy proves active workspace staff from `auth.uid()` and class membership; a BEFORE INSERT trigger derives `created_by` and forces draft/null publication state. Column grants prevent browser writes to creator, status, publication timestamp, and tenant scope. Authenticated users have no direct assignment DELETE privilege; `discard_assignment` deletes only drafts after staff authorization.
+
+The published-content guard locks and checks the parent assignment before every item insert/update/delete. It rejects mutation unless the assignment is still a draft, including through privileged application operations that do not rely on row policies. Publication locks the assignment/class/workspace before validating active status and the non-empty item requirement; therefore item mutation and publication serialize. Archived content remains frozen. Title and due date stay editable through column-limited metadata updates.
+
+Students can read only a `published` assignment whose class and workspace are active and where `class_enrollments` contains an active row for `auth.uid()`. The assignment SELECT policy evaluates the row's class/status through a private authorization helper. The item SELECT policy traverses the parent assignment under its own RLS, so items inherit the same published/enrolled boundary without exposing classmates or other assignment statuses.
+
+The reorder RPC accepts only the exact existing item ID set for one draft assignment, rejects duplicate/missing/extra/foreign IDs, defers the per-assignment unique position constraint, and normalizes positions to `0..N-1` atomically. Ordinary clients cannot update item positions directly. Assignment lifecycle RPCs implement draft→published→archived→published and preserve the first `published_at`. V1 activity key/version and problem-count constraints are enforced by PostgreSQL as well as the TypeScript contract.
+
+Phase 3 SECURITY DEFINER functions are limited to `classroom_private.guard_assignment_item_content`, its four narrow boolean authorization helpers (`can_create_assignment_for_class`, `can_manage_assignment`, `can_read_assignment`, `can_edit_assignment_items`), and the authenticated public RPCs `publish_assignment`, `archive_assignment`, `reactivate_assignment`, `discard_assignment`, and `reorder_assignment_items`. Each derives caller identity from `auth.uid()` and uses an empty search path; RPCs return minimal assignment fields or no data. There are no assignment SECURITY DEFINER endpoints exposed to anon.
+
+`supabase/tests/database/assignment_security.test.sql` adversarially covers grants, RLS, owner/educator/student/outsider/anon cases, known foreign UUIDs, class/workspace isolation, draft creation and spoofing, published-only student reads, draft mutations, content immutability, publication lifecycle/timestamp preservation, draft deletion cascade, exact atomic reorder validation, and SECURITY DEFINER privileges/search paths. Phase 1's original 93 assertions remain unchanged.
 
 ## Verification
 

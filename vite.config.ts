@@ -10,7 +10,7 @@ export default defineConfig({
     pool: 'forks',
     maxWorkers: 1,
     fileParallelism: false,
-    isolate: false,
+    isolate: true,
     testTimeout: 15_000,
     restoreMocks: true,
     clearMocks: true,

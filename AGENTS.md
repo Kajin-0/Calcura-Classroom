@@ -6,10 +6,10 @@ This repository is the teacher and institutional control plane. Read `README.md`
 
 - Auth behavior and session lifecycle: `src/features/auth/`.
 - Supabase environment parsing and browser client: `src/lib/supabase/`.
-- Domain contracts: `src/types/domain.ts` and `docs/DATA_MODEL.md`.
+- Domain contracts: `src/types/domain.ts`, `src/contracts/assignmentActivities.ts`, and `docs/DATA_MODEL.md`.
 - Database configuration and migrations: `supabase/config.toml` and `supabase/migrations/`.
 - Database policy/RPC security boundary: `docs/RLS_SECURITY_MODEL.md` and `supabase/tests/database/`.
-- Typed database-facing behavior: `src/features/workspaces/`, `src/features/classes/`, and generated `src/types/database.generated.ts`.
+- Typed database-facing behavior: `src/features/workspaces/`, `src/features/classes/`, `src/features/assignments/`, and generated `src/types/database.generated.ts`.
 - Authenticated teacher shell and class routes: `src/app/TeacherLayout.tsx`, `src/app/routes.tsx`, and feature-scoped class/workspace pages and hooks.
 - Unit, integration, and browser checks: `tests/`.
 - Architecture decisions and cross-repository contracts: `docs/`.
@@ -31,6 +31,8 @@ This repository is the teacher and institutional control plane. Read `README.md`
 - Do not add institutional integrations before a defined product requirement. Do not implement Stripe or billing before the designated billing phase.
 - Do not make destructive changes to the Calcura student repository. It is read-only reference material from this repository.
 - Cross-repository contracts, including learning events, must be versioned and reviewed at both boundaries.
+- Classroom assignments store teacher intent only. Never persist generated math, answer/solution content, solver internals, or Calcura taxonomy IDs as assignment identity. Published and archived practice blocks are immutable at the database layer.
+- Assignment activity identity is `(activity_contract_version, activity_key)`. V1 semantics are stable; incompatible practice-family changes require a new versioned key and a reviewed Calcura mapping.
 - Workspace roles are `owner`, `admin`, and `educator`. Students are class enrollees, not administrative workspace members.
 
 ## Validation

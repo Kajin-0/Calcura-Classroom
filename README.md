@@ -1,11 +1,11 @@
 # Calcura Classroom
 
-Calcura Classroom is the teacher and institutional control plane for Calcura. **Phase 0: Engineering foundation**, **Phase 1: Workspace + Classroom schema + RLS**, and **Phase 2: Teacher class management** are complete. Teachers can create and manage classes, share join codes, and view active enrollment counts. The Classroom schema has not been deployed to the hosted Supabase project.
+Calcura Classroom is the teacher and institutional control plane for Calcura. **Phases 0–3 are complete**: engineering foundation, workspace/class RLS, teacher class management, and the initial assignment model/builder. Teachers can create classes and draft assignments containing versioned practice-family blocks, then publish, archive, reactivate, or discard drafts. The Classroom schema has not been deployed to the hosted Supabase project.
 
 ## Repository responsibilities
 
 - [`Kajin-0/Calcura`](https://github.com/Kajin-0/Calcura) owns student practice, the single mathematics engine, grading, student performance, Android, and the student browser/PWA experience.
-- `Kajin-0/Calcura-Classroom` owns teacher authentication UX, workspace and classroom administration, assignments, teacher analytics, future billing integration, migrations, and Edge Functions.
+- `Kajin-0/Calcura-Classroom` owns teacher authentication UX, workspace and classroom administration, assignment intent, teacher analytics, future billing integration, migrations, and Edge Functions.
 - `Kajin-0/Calcura-Site` owns public marketing and pricing.
 
 Classroom uses the same Supabase project and Auth users as Calcura. Mathematical generation and correctness stay in Calcura. Student performance is currently primarily local; cloud sharing will require a versioned learning-event contract and explicit privacy rules.
@@ -57,7 +57,7 @@ npm run supabase -- status
 npm run supabase -- stop
 ```
 
-The local migration creates workspaces, staff membership, classes, enrollments, personal workspace bootstrap, join codes, and RLS. It is the data boundary used by the teacher class-management surface, but has not been deployed remotely. Starting the local stack requires Docker:
+The local migrations create the workspace/class foundation and assignment-intent model with published-content immutability. They are the data boundary used by the teacher surfaces, but have not been deployed remotely. Starting the local stack requires Docker:
 
 ```bash
 npm run supabase:start
@@ -77,4 +77,4 @@ Every exposed Supabase table requires explicit grants and RLS. A publishable key
 
 ## Roadmap
 
-The planned order is recorded in [Roadmap](docs/ROADMAP.md). The next phase is **Phase 3 — Assignment Model + Teacher Assignment Builder**. Assignments, analytics, billing, plans, entitlements, Team, School, and University are not implemented.
+The planned order is recorded in [Roadmap](docs/ROADMAP.md). The next phase is **Phase 4 — Student Calcura Assignment Integration**. Student assignment consumption, generated problems, attempts, learning events, analytics, billing, entitlements, Team, School, and University are not implemented.

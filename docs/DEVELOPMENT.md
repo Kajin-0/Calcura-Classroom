@@ -10,7 +10,7 @@ npm run dev
 
 The app handles missing or invalid Supabase settings without a runtime crash. Add local values only to `.env.local`; it is ignored by Git. A valid project URL and publishable key are needed to contact the shared Auth service.
 
-The authenticated `/app` route lazily bootstraps a personal workspace and provides class creation, class details, join-code copying, enrollment counts, rename, archive, and reactivation. It uses the existing Phase 1 local schema; do not deploy that schema to the hosted project until its baseline has been reconciled.
+The authenticated `/app` route lazily bootstraps a personal workspace and provides class creation, class details, join-code copying, enrollment counts, rename, archive, and reactivation. Class detail includes real assignment listing and the teacher draft builder (metadata, versioned practice blocks, ordering, publish/archive/reactivate/discard). It uses the Phase 1 and Phase 3 local schemas; do not deploy those migrations to the hosted project until its baseline has been reconciled.
 
 ## Validation
 
@@ -45,9 +45,11 @@ npm run supabase -- db advisors --local
 npm run supabase:stop
 ```
 
-`supabase:reset` recreates only the local database and applies checked-in migrations; local database data is discarded. The local `db lint` and `db advisors` commands inspect the local database. The generated database type file is `src/types/database.generated.ts`; regenerate it after schema changes and commit it with the migration.
+`supabase:reset` recreates only the local database and applies checked-in migrations; local database data is discarded. Run both `db lint --local` and `db advisors --local` against the local database. Phase 3's advisor run found no Phase 3 index/security issues; it reports two inherited INFO findings for the Phase 1 `classes.created_by` and `workspaces.created_by` provenance foreign keys. Those are left unchanged to avoid Phase 1 migration churn. The generated database type file is `src/types/database.generated.ts`; regenerate it after schema changes and commit it with the migration.
 
-Do not use `--linked`, `db pull`, `db push`, remote migration repair, or a remote SQL editor during Phase 1. The production Supabase schema is not baselined, and local migrations are not production-ready until the baseline is reconciled. See [Supabase baseline](SUPABASE_BASELINE.md).
+Phase 3 adds `20260924111016_assignment_foundation.sql` and `supabase/tests/database/assignment_security.test.sql`. The assignment test suite runs through the same verified local command `npm run test:db`; the Phase 1 93-assertion suite remains intact. Do not run remote/linking operations during local validation.
+
+Do not use `--linked`, `db pull`, `db push`, remote migration repair, or a remote SQL editor during local Classroom implementation. The production Supabase schema is not baselined, and local migrations are not production-ready until the baseline is reconciled. See [Supabase baseline](SUPABASE_BASELINE.md).
 
 ## Repository workflow
 

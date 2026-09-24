@@ -4,6 +4,8 @@ import { SignInPage } from '../features/auth/SignInPage';
 import { WorkspaceProvider } from '../features/workspaces/WorkspaceProvider';
 import { ClassDetailPage } from '../features/classes/ClassDetailPage';
 import { ClassListPage } from '../features/classes/ClassListPage';
+import { AssignmentBuilderPage } from '../features/assignments/AssignmentPages';
+import { NewAssignmentPage } from '../features/assignments/NewAssignmentPage';
 import { TeacherLayout } from './TeacherLayout';
 
 export function AppRoutes() {
@@ -15,6 +17,14 @@ export function AppRoutes() {
         <Route element={<WorkspaceProvider />}>
           <Route path="/app" element={<TeacherLayout />}>
             <Route index element={<ClassListPage />} />
+            <Route
+              path="classes/:classId/assignments/new"
+              element={<NewAssignmentPage />}
+            />
+            <Route
+              path="classes/:classId/assignments/:assignmentId"
+              element={<AssignmentBuilderPage />}
+            />
             <Route path="classes/:classId" element={<ClassDetailPage />} />
           </Route>
         </Route>

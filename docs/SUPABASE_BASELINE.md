@@ -21,6 +21,15 @@
 - Baseline migration for production: not generated. The Phase 1 migration must not be applied to production until the existing Calcura objects and migration history have been safely reconciled.
 - Production Supabase changes: none.
 
+## Phase 3 local assignment migration status
+
+- The CLI-created local migration `supabase/migrations/20260924111016_assignment_foundation.sql` adds only `public.assignments`, `public.assignment_items`, local helper functions, grants, lifecycle/reorder RPCs, and RLS policies. The Phase 1 migration is unchanged.
+- A clean local `npm run supabase:reset` applied both migrations successfully. `npm run test:db` runs the Phase 1 and Phase 3 pgTAP files through the pinned CLI; the known earlier host-port failure was not reproducible during Phase 3 diagnosis.
+- TypeScript database types were generated from the local schema with `npm run types:db`.
+- Local validation passed 172 pgTAP assertions, `supabase db lint --local` reported no schema errors, and `supabase db advisors --local --type all --level info --fail-on error` reported no Phase 3 findings after adding an index for `assignments.created_by`. Its only remaining findings are INFO-level missing indexes for the Phase 1 `classes.created_by` and `workspaces.created_by` provenance foreign keys; the Phase 1 migration remains unchanged.
+- The migration is preparation for later deployment only. The hosted project still has no safely reconciled baseline. Do not link, pull, repair, push, or otherwise apply this migration to production until the existing schema and history have been reviewed.
+- Production Supabase changes: none.
+
 ## Existing Calcura repository evidence
 
 The read-only Calcura checkout documents an existing `public.communication_preferences` table in `docs/SUPABASE_AUTH_SETUP.md` and `supabase/schemas/communication_preferences.sql`. That schema uses `auth.users(id)` as its key, enables RLS, revokes anonymous access, and scopes authenticated reads/writes to `auth.uid() = user_id`. The checkout also contains a later privilege-hardening migration. `supabase/schemas/practice_attempts.sql` is present in the repository, but its presence is not evidence that the object exists in production. No full remote public schema inventory can be established from local files alone.

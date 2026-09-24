@@ -83,7 +83,7 @@ function renderApp(path = '/app') {
 
 describe('teacher class management routes', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     vi.mocked(ensurePersonalWorkspace).mockResolvedValue({
       ok: true,
       value: workspace,

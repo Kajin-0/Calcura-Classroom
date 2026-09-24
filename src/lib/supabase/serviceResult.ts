@@ -6,6 +6,16 @@ export type ClassroomErrorCode =
   | 'invalid_class_name'
   | 'invalid_join_code'
   | 'class_archived'
+  | 'invalid_assignment_title'
+  | 'invalid_due_date'
+  | 'invalid_activity_key'
+  | 'invalid_problem_count'
+  | 'assignment_not_found'
+  | 'invalid_assignment_transition'
+  | 'assignment_requires_items'
+  | 'only_drafts_can_be_discarded'
+  | 'invalid_assignment_item_order'
+  | 'classroom_inactive'
   | 'unexpected';
 
 export interface ClassroomError {
@@ -24,6 +34,21 @@ const userMessages: Record<ClassroomErrorCode, string> = {
   invalid_class_name: 'Enter a class name between 1 and 120 characters.',
   invalid_join_code: 'That class code is invalid. Check it and try again.',
   class_archived: 'That class is archived and cannot accept new students.',
+  invalid_assignment_title:
+    'Enter an assignment title between 1 and 160 characters.',
+  invalid_due_date: 'Enter a valid due date and time.',
+  invalid_activity_key: 'Choose a supported practice activity.',
+  invalid_problem_count: 'Choose between 1 and 20 problems for each block.',
+  assignment_not_found: 'The requested assignment is unavailable.',
+  invalid_assignment_transition:
+    'This assignment can no longer make that change.',
+  assignment_requires_items:
+    'Add at least one practice block before publishing.',
+  only_drafts_can_be_discarded: 'Only draft assignments can be discarded.',
+  invalid_assignment_item_order:
+    'The practice block order changed. Reload and try again.',
+  classroom_inactive:
+    'This class is not active and cannot publish assignments.',
   unexpected: 'We could not complete that request. Try again.',
 };
 
@@ -46,6 +71,16 @@ export function mapClassroomError(error: unknown): ClassroomError {
     if (providerMessage === 'invalid_join_code') code = 'invalid_join_code';
     else if (providerMessage === 'class_archived') code = 'class_archived';
     else if (providerMessage === 'not_authorized') code = 'not_authorized';
+    else if (providerMessage === 'assignment_requires_items')
+      code = 'assignment_requires_items';
+    else if (providerMessage === 'only_drafts_can_be_discarded')
+      code = 'only_drafts_can_be_discarded';
+    else if (providerMessage === 'invalid_assignment_item_order')
+      code = 'invalid_assignment_item_order';
+    else if (providerMessage === 'invalid_assignment_transition')
+      code = 'invalid_assignment_transition';
+    else if (providerMessage === 'classroom_inactive')
+      code = 'classroom_inactive';
   }
 
   return { code, message: userMessages[code] };

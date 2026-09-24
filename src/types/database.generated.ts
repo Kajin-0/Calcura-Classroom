@@ -34,6 +34,91 @@ export type Database = {
   };
   public: {
     Tables: {
+      assignment_items: {
+        Row: {
+          activity_contract_version: number;
+          activity_key: string;
+          assignment_id: string;
+          created_at: string;
+          id: string;
+          position: number;
+          problem_count: number;
+          updated_at: string;
+        };
+        Insert: {
+          activity_contract_version?: number;
+          activity_key: string;
+          assignment_id: string;
+          created_at?: string;
+          id?: string;
+          position: number;
+          problem_count: number;
+          updated_at?: string;
+        };
+        Update: {
+          activity_contract_version?: number;
+          activity_key?: string;
+          assignment_id?: string;
+          created_at?: string;
+          id?: string;
+          position?: number;
+          problem_count?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assignment_items_assignment_id_fkey';
+            columns: ['assignment_id'];
+            isOneToOne: false;
+            referencedRelation: 'assignments';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      assignments: {
+        Row: {
+          class_id: string;
+          created_at: string;
+          created_by: string | null;
+          due_at: string | null;
+          id: string;
+          published_at: string | null;
+          status: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          class_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          due_at?: string | null;
+          id?: string;
+          published_at?: string | null;
+          status?: string;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          class_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          due_at?: string | null;
+          id?: string;
+          published_at?: string | null;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assignments_class_id_fkey';
+            columns: ['class_id'];
+            isOneToOne: false;
+            referencedRelation: 'classes';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       class_enrollments: {
         Row: {
           class_id: string;
@@ -174,6 +259,23 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      archive_assignment: {
+        Args: { p_assignment_id: string };
+        Returns: {
+          class_id: string;
+          created_at: string;
+          due_at: string;
+          id: string;
+          published_at: string;
+          status: string;
+          title: string;
+          updated_at: string;
+        }[];
+      };
+      discard_assignment: {
+        Args: { p_assignment_id: string };
+        Returns: undefined;
+      };
       ensure_personal_workspace: {
         Args: never;
         Returns: {
@@ -192,6 +294,36 @@ export type Database = {
           enrollment_status: string;
           workspace_id: string;
         }[];
+      };
+      publish_assignment: {
+        Args: { p_assignment_id: string };
+        Returns: {
+          class_id: string;
+          created_at: string;
+          due_at: string;
+          id: string;
+          published_at: string;
+          status: string;
+          title: string;
+          updated_at: string;
+        }[];
+      };
+      reactivate_assignment: {
+        Args: { p_assignment_id: string };
+        Returns: {
+          class_id: string;
+          created_at: string;
+          due_at: string;
+          id: string;
+          published_at: string;
+          status: string;
+          title: string;
+          updated_at: string;
+        }[];
+      };
+      reorder_assignment_items: {
+        Args: { p_assignment_id: string; p_item_ids: string[] };
+        Returns: undefined;
       };
     };
     Enums: {
