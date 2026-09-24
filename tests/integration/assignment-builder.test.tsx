@@ -18,6 +18,7 @@ import {
   createAssignment,
   discardAssignment,
   getAssignmentById,
+  getAssignmentStudentProgress,
   listAssignmentItems,
   listClassAssignments,
   publishAssignment,
@@ -55,6 +56,7 @@ vi.mock('../../src/features/assignments/assignmentService', () => ({
   createAssignment: vi.fn(),
   discardAssignment: vi.fn(),
   getAssignmentById: vi.fn(),
+  getAssignmentStudentProgress: vi.fn(),
   listAssignmentItems: vi.fn(),
   listClassAssignments: vi.fn(),
   publishAssignment: vi.fn(),
@@ -141,6 +143,10 @@ describe('teacher assignment workflow', () => {
     vi.mocked(listClassAssignments).mockResolvedValue({ ok: true, value: [] });
     vi.mocked(createAssignment).mockResolvedValue({ ok: true, value: draft });
     vi.mocked(getAssignmentById).mockResolvedValue({ ok: true, value: draft });
+    vi.mocked(getAssignmentStudentProgress).mockResolvedValue({
+      ok: true,
+      value: [],
+    });
     vi.mocked(listAssignmentItems).mockResolvedValue({ ok: true, value: [] });
     vi.mocked(addAssignmentItem).mockResolvedValue({ ok: true, value: item });
     vi.mocked(updateAssignmentItem).mockResolvedValue({
@@ -308,6 +314,114 @@ describe('teacher assignment workflow', () => {
       expect(reactivateAssignment).toHaveBeenCalledWith(draft.id),
     );
     expect(await screen.findByText('Content locked')).toBeVisible();
+  });
+
+  it('shows authorized enrolled-student progress on published assignments', async () => {
+    vi.mocked(getAssignmentById).mockResolvedValueOnce({
+      ok: true,
+      value: {
+        ...draft,
+        status: 'published',
+        published_at: '2026-09-24T12:00:00Z',
+      },
+    });
+    vi.mocked(listAssignmentItems).mockResolvedValueOnce({
+      ok: true,
+      value: [item],
+    });
+    vi.mocked(getAssignmentStudentProgress).mockResolvedValueOnce({
+      ok: true,
+      value: [
+        {
+          studentUserId: 'student-a',
+          email: 'student-a@example.test',
+          completedProblemCount: 0,
+          totalProblemCount: 5,
+          status: 'not_started',
+          lastActivityAt: null,
+        },
+        {
+          studentUserId: 'student-b',
+          email: 'student-b@example.test',
+          completedProblemCount: 2,
+          totalProblemCount: 5,
+          status: 'in_progress',
+          lastActivityAt: '2026-09-24T12:00:00Z',
+        },
+        {
+          studentUserId: 'student-c',
+          email: 'student-c@example.test',
+          completedProblemCount: 5,
+          totalProblemCount: 5,
+          status: 'completed',
+          lastActivityAt: '2026-09-24T12:30:00Z',
+        },
+      ],
+    });
+    renderApp('/app/classes/class-a/assignments/assignment-a');
+    const section = await screen.findByRole('region', {
+      name: 'Student progress',
+    });
+    expect(within(section).getByText('student-a@example.test')).toBeVisible();
+    expect(within(section).getByText('0 / 5')).toBeVisible();
+    expect(within(section).getByText('Not started')).toBeVisible();
+    expect(within(section).getByText('2 / 5')).toBeVisible();
+    expect(within(section).getByText('In progress')).toBeVisible();
+    expect(within(section).getByText('Completed')).toBeVisible();
+  });
+
+  it('shows a clean no-enrollment state', async () => {
+    vi.mocked(getAssignmentById).mockResolvedValueOnce({
+      ok: true,
+      value: {
+        ...draft,
+        status: 'published',
+        published_at: '2026-09-24T12:00:00Z',
+      },
+    });
+    vi.mocked(getAssignmentStudentProgress).mockResolvedValueOnce({
+      ok: true,
+      value: [],
+    });
+    renderApp('/app/classes/class-a/assignments/assignment-a');
+    const section = await screen.findByRole('region', {
+      name: 'Student progress',
+    });
+    expect(
+      within(section).getByText(
+        'No active students are enrolled in this class yet.',
+      ),
+    ).toBeVisible();
+  });
+
+  it('offers retry when teacher progress cannot be loaded', async () => {
+    vi.mocked(getAssignmentById).mockResolvedValueOnce({
+      ok: true,
+      value: {
+        ...draft,
+        status: 'published',
+        published_at: '2026-09-24T12:00:00Z',
+      },
+    });
+    vi.mocked(getAssignmentStudentProgress)
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: 'unexpected', message: 'safe' },
+      })
+      .mockResolvedValueOnce({ ok: true, value: [] });
+    renderApp('/app/classes/class-a/assignments/assignment-a');
+    const section = await screen.findByRole('region', {
+      name: 'Student progress',
+    });
+    expect(
+      within(section).getByText('Student progress is unavailable right now.'),
+    ).toBeVisible();
+    fireEvent.click(within(section).getByRole('button', { name: 'Retry' }));
+    expect(
+      await within(section).findByText(
+        'No active students are enrolled in this class yet.',
+      ),
+    ).toBeVisible();
   });
 
   it('requires confirmation before discarding a draft', async () => {

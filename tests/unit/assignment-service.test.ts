@@ -7,6 +7,7 @@ import {
   createAssignment,
   discardAssignment,
   getAssignmentById,
+  getAssignmentStudentProgress,
   listAssignmentItems,
   listClassAssignments,
   publishAssignment,
@@ -321,6 +322,51 @@ describe('assignment service boundaries', () => {
     ).resolves.toMatchObject({
       ok: false,
       error: { code: 'assignment_requires_items' },
+    });
+  });
+
+  it('loads only the typed, validated teacher progress RPC response', async () => {
+    const row = {
+      student_user_id: '11111111-1111-4111-8111-111111111111',
+      student_email: 'student@example.test',
+      completed_problem_count: 2,
+      total_problem_count: 5,
+      progress_status: 'in_progress',
+      last_activity_at: '2026-09-24T12:00:00Z',
+    };
+    const client = clientMock({
+      rpc: vi.fn().mockResolvedValue({ data: [row], error: null }),
+    });
+    await expect(
+      getAssignmentStudentProgress('assignment-a', client),
+    ).resolves.toEqual({
+      ok: true,
+      value: [
+        {
+          studentUserId: row.student_user_id,
+          email: row.student_email,
+          completedProblemCount: 2,
+          totalProblemCount: 5,
+          status: 'in_progress',
+          lastActivityAt: row.last_activity_at,
+        },
+      ],
+    });
+    expect(client.rpc).toHaveBeenCalledWith('get_assignment_student_progress', {
+      p_assignment_id: 'assignment-a',
+    });
+
+    const malformed = clientMock({
+      rpc: vi.fn().mockResolvedValue({
+        data: [{ ...row, completed_problem_count: 6 }],
+        error: null,
+      }),
+    });
+    await expect(
+      getAssignmentStudentProgress('assignment-a', malformed),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'unexpected' },
     });
   });
 });

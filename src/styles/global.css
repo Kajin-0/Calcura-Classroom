@@ -680,6 +680,37 @@ h1 {
 .assignment-content-section .muted-copy {
   margin: 7px 0 0;
 }
+.assignment-student-progress {
+  display: grid;
+  gap: 0;
+  margin: 16px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--color-border);
+  list-style: none;
+}
+.assignment-student-progress li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px 112px minmax(145px, 180px);
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--color-border);
+}
+.assignment-student-progress .muted-copy {
+  font-size: 0.84rem;
+}
+.assignment-student-identity {
+  overflow-wrap: anywhere;
+  font-weight: 560;
+}
+.assignment-student-count {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.assignment-student-status {
+  color: var(--color-ink);
+}
 .assignment-status {
   text-transform: capitalize;
 }
@@ -926,6 +957,18 @@ h1 {
   .practice-block-readonly {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .assignment-student-progress li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 5px 12px;
+  }
+  .assignment-student-identity {
+    grid-column: 1 / -1;
+  }
+  .assignment-student-progress time,
+  .assignment-student-progress li > .muted-copy {
+    grid-column: 1 / -1;
   }
   .lifecycle-actions {
     align-items: flex-start;

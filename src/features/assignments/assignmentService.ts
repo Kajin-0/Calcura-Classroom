@@ -39,6 +39,17 @@ export type AssignmentItemSummary = Pick<
   | 'updated_at'
 >;
 
+export type AssignmentProgressStatus =
+  'not_started' | 'in_progress' | 'completed';
+export interface AssignmentStudentProgress {
+  studentUserId: string;
+  email: string | null;
+  completedProblemCount: number;
+  totalProblemCount: number;
+  status: AssignmentProgressStatus;
+  lastActivityAt: string | null;
+}
+
 const assignmentColumns =
   'id, class_id, title, due_at, status, published_at, created_at, updated_at';
 const itemColumns =
@@ -125,6 +136,74 @@ export async function getAssignmentById(
     if (error) return mapFailure(error);
     if (!data) return failure('assignment_not_found');
     return { ok: true, value: data };
+  } catch (error) {
+    return mapFailure(error);
+  }
+}
+
+const isProgressStatus = (value: unknown): value is AssignmentProgressStatus =>
+  value === 'not_started' || value === 'in_progress' || value === 'completed';
+const isUuid = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+
+export async function getAssignmentStudentProgress(
+  assignmentId: string,
+  client: Client | null = getSupabaseClient(),
+): Promise<ServiceResult<AssignmentStudentProgress[]>> {
+  const resolved = resolveClient(client);
+  if (!resolved.ok) return resolved;
+
+  try {
+    const { data, error } = await resolved.value.rpc(
+      'get_assignment_student_progress',
+      { p_assignment_id: assignmentId },
+    );
+    if (error) return mapFailure(error);
+    if (!Array.isArray(data)) return failure('unexpected');
+    const rows: AssignmentStudentProgress[] = [];
+    for (const value of data as unknown[]) {
+      if (!value || typeof value !== 'object') return failure('unexpected');
+      const row = value as Record<string, unknown>;
+      if (
+        !isUuid(row.student_user_id) ||
+        !(
+          typeof row.student_email === 'string' || row.student_email === null
+        ) ||
+        !Number.isInteger(row.completed_problem_count) ||
+        !Number.isInteger(row.total_problem_count) ||
+        (row.completed_problem_count as number) < 0 ||
+        (row.total_problem_count as number) < 0 ||
+        (row.completed_problem_count as number) >
+          (row.total_problem_count as number) ||
+        !isProgressStatus(row.progress_status) ||
+        !(
+          typeof row.last_activity_at === 'string' ||
+          row.last_activity_at === null
+        ) ||
+        (typeof row.last_activity_at === 'string' &&
+          !Number.isFinite(Date.parse(row.last_activity_at)))
+      )
+        return failure('unexpected');
+      const expectedStatus =
+        row.completed_problem_count === 0
+          ? 'not_started'
+          : row.completed_problem_count === row.total_problem_count
+            ? 'completed'
+            : 'in_progress';
+      if (row.progress_status !== expectedStatus) return failure('unexpected');
+      rows.push({
+        studentUserId: row.student_user_id,
+        email: row.student_email,
+        completedProblemCount: row.completed_problem_count as number,
+        totalProblemCount: row.total_problem_count as number,
+        status: row.progress_status,
+        lastActivityAt: row.last_activity_at,
+      });
+    }
+    return { ok: true, value: rows };
   } catch (error) {
     return mapFailure(error);
   }

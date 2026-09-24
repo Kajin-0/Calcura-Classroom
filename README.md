@@ -1,6 +1,6 @@
 # Calcura Classroom
 
-Calcura Classroom is the teacher and institutional control plane for Calcura. **Phases 0–3 are complete**: engineering foundation, workspace/class RLS, teacher class management, and the initial assignment model/builder. Teachers can create classes and draft assignments containing versioned practice-family blocks, then publish, archive, reactivate, or discard drafts. The Classroom schema has not been deployed to the hosted Supabase project.
+Calcura Classroom is the teacher and institutional control plane for Calcura. **Phases 0–5 are complete locally**: engineering foundation, workspace/class RLS, teacher class management, assignment authoring, student Calcura integration, and terminal assignment-result reporting. Teachers can publish versioned practice-family assignments and view each active enrollee's completed/total problem slots. Students solve through Calcura, which remains the only mathematics engine. These features require the shared Classroom schema; it has not been deployed to the hosted Supabase project, and the Calcura student feature gate remains disabled by default.
 
 ## Repository responsibilities
 
@@ -8,7 +8,7 @@ Calcura Classroom is the teacher and institutional control plane for Calcura. **
 - `Kajin-0/Calcura-Classroom` owns teacher authentication UX, workspace and classroom administration, assignment intent, teacher analytics, future billing integration, migrations, and Edge Functions.
 - `Kajin-0/Calcura-Site` owns public marketing and pricing.
 
-Classroom uses the same Supabase project and Auth users as Calcura. Mathematical generation and correctness stay in Calcura. Student performance is currently primarily local; cloud sharing will require a versioned learning-event contract and explicit privacy rules.
+Classroom and Calcura use the same Supabase project and Auth users. Calcura still owns mathematical generation, checking, grading, and generic personal `AttemptRecord` history. Classroom stores assignment intent plus one minimal terminal result per assigned problem slot. Correct and surrendered slots count as complete; abandoned attempts do not. Outcome, performance, and taxonomy fields are client-reported context, not cryptographically verified academic truth. The result RPC validates authenticated identity, active enrollment, item/assignment relationship, lifecycle state, ordinal bounds, and idempotency. Teacher identity is returned only by a narrowly authorized progress RPC; students cannot read classmates' results.
 
 ## Local setup
 
@@ -57,7 +57,7 @@ npm run supabase -- status
 npm run supabase -- stop
 ```
 
-The local migrations create the workspace/class foundation and assignment-intent model with published-content immutability. They are the data boundary used by the teacher surfaces, but have not been deployed remotely. Starting the local stack requires Docker:
+The local migrations create the workspace/class foundation, assignment-intent model with published-content immutability, and assignment-slot result contract. They are the data boundary used by both teacher and student surfaces, but have not been deployed remotely. Starting the local stack requires Docker:
 
 ```bash
 npm run supabase:start
@@ -73,8 +73,8 @@ These commands target the local stack only. Do not run linked resets, pushes, or
 
 See [AGENTS.md](AGENTS.md) for mandatory engineering rules, [Auth](docs/AUTH.md) for the OTP contract, [Architecture](docs/ARCHITECTURE.md) for ownership boundaries, and [Data model](docs/DATA_MODEL.md) for the implemented local schema and future conceptual entities.
 
-Every exposed Supabase table requires explicit grants and RLS. A publishable key is not an authorization rule. Phase 1 workspace access is resolved from active server-side workspace membership; student access is class-enrollment scoped.
+Every exposed Supabase table requires explicit grants and RLS. A publishable key is not an authorization rule. Workspace staff access comes from server-side membership; student reads and terminal result submissions are class-enrollment scoped. Result writes are RPC-only; authenticated clients have select-only access to their own result rows.
 
 ## Roadmap
 
-The planned order is recorded in [Roadmap](docs/ROADMAP.md). The next phase is **Phase 4 — Student Calcura Assignment Integration**. Student assignment consumption, generated problems, attempts, learning events, analytics, billing, entitlements, Team, School, and University are not implemented.
+The planned order is recorded in [Roadmap](docs/ROADMAP.md). The next phase is **Phase 6 — Basic Analytics**. Rich learning events, step-level telemetry, analytics, billing, entitlements, Team, School, and University remain deferred.

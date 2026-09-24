@@ -4,12 +4,13 @@
 
 ## Access boundaries
 
-| Table               | Authenticated staff                                                    | Enrolled student                                                           | Unrelated user / anon |
-| ------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------- |
-| `workspaces`        | Read active workspace when a workspace-member row matches `auth.uid()` | No access                                                                  | No access             |
-| `workspace_members` | Read members in own active workspace                                   | No access, including own classroom's staff list                            | No access             |
-| `classes`           | Read, create, rename, archive, reactivate within own active workspace  | Read only classes with own active enrollment; no creator UUID or join code | No access             |
-| `class_enrollments` | Read enrollments for classes in own active workspace                   | Read only own enrollment rows                                              | No access             |
+| Table                        | Authenticated staff                                                    | Enrolled student                                                           | Unrelated user / anon |
+| ---------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------- |
+| `workspaces`                 | Read active workspace when a workspace-member row matches `auth.uid()` | No access                                                                  | No access             |
+| `workspace_members`          | Read members in own active workspace                                   | No access, including own classroom's staff list                            | No access             |
+| `classes`                    | Read, create, rename, archive, reactivate within own active workspace  | Read only classes with own active enrollment; no creator UUID or join code | No access             |
+| `class_enrollments`          | Read enrollments for classes in own active workspace                   | Read only own enrollment rows                                              | No access             |
+| `assignment_problem_results` | No direct table reads; authorized progress RPC only                    | Read only own result rows; write only through validated result RPC         | No access             |
 
 Grants and RLS are separate controls. The migration revokes existing public/anon/authenticated table grants first, grants authenticated only the required table/column operations, and enables RLS on all four exposed tables. Client hard deletes are not granted. Direct membership and enrollment writes are not granted.
 
@@ -57,6 +58,14 @@ Students can read only a `published` assignment whose class and workspace are ac
 The reorder RPC accepts only the exact existing item ID set for one draft assignment, rejects duplicate/missing/extra/foreign IDs, defers the per-assignment unique position constraint, and normalizes positions to `0..N-1` atomically. Ordinary clients cannot update item positions directly. Assignment lifecycle RPCs implement draft→published→archived→published and preserve the first `published_at`. V1 activity key/version and problem-count constraints are enforced by PostgreSQL as well as the TypeScript contract.
 
 Phase 3 SECURITY DEFINER functions are limited to `classroom_private.guard_assignment_item_content`, its four narrow boolean authorization helpers (`can_create_assignment_for_class`, `can_manage_assignment`, `can_read_assignment`, `can_edit_assignment_items`), and the authenticated public RPCs `publish_assignment`, `archive_assignment`, `reactivate_assignment`, `discard_assignment`, and `reorder_assignment_items`. Each derives caller identity from `auth.uid()` and uses an empty search path; RPCs return minimal assignment fields or no data. There are no assignment SECURITY DEFINER endpoints exposed to anon.
+
+## Phase 5 assignment results
+
+`assignment_problem_results` has RLS enabled. `anon` has no table privileges; `authenticated` has SELECT only, further restricted by `student_user_id = (select auth.uid())`. There is no ordinary client INSERT, UPDATE, or DELETE grant. `record_assignment_problem_result` is the only write path: it is authenticated-only, SECURITY DEFINER with an empty search path, derives identity from `auth.uid()`, locks/checks the parent assignment, class, and workspace state, verifies an active enrollment, enforces the immutable item problem-count bound, and relies on table checks plus unique constraints for payload validity and slot/client idempotency. `correct` and `surrendered` are terminal results; `abandoned` is rejected. Repeated delivery never updates the first result.
+
+`get_assignment_student_progress(assignment_id)` independently resolves the assignment's class/workspace and requires an active `owner`, `admin`, or `educator` membership before reading `auth.users`. It returns one row per active enrollee and only the student ID, email, completed/total slots, status, and latest result timestamp. It can report existing data for a published or archived assignment but does not expose general `auth.users` access or another workspace's users. Student result SELECT remains own-row only; teacher reads are through this narrow RPC.
+
+The result contains no generated mathematics. Outcome, counts, duration, grade points, and taxonomy are client-reported context; database enforcement proves identity, enrollment, item/assignment relationship, lifecycle, slot bounds, constraints, and idempotency, not cryptographic academic truth. `supabase/tests/database/assignment_results_security.test.sql` exercises these grants, RLS, status transitions, duplicate behavior, teacher authorization, and known foreign UUIDs.
 
 `supabase/tests/database/assignment_security.test.sql` adversarially covers grants, RLS, owner/educator/student/outsider/anon cases, known foreign UUIDs, class/workspace isolation, draft creation and spoofing, published-only student reads, draft mutations, content immutability, publication lifecycle/timestamp preservation, draft deletion cascade, exact atomic reorder validation, and SECURITY DEFINER privileges/search paths. Phase 1's original 93 assertions remain unchanged.
 

@@ -112,6 +112,24 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
       return;
     }
 
+    if (path.endsWith('/rpc/get_assignment_student_progress')) {
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        json: [
+          {
+            student_user_id: '11111111-1111-4111-8111-111111111111',
+            student_email: 'student@example.test',
+            completed_problem_count: 2,
+            total_problem_count: 5,
+            progress_status: 'in_progress',
+            last_activity_at: now,
+          },
+        ],
+      });
+      return;
+    }
+
     if (path.endsWith('/class_enrollments')) {
       await route.fulfill({
         status: 200,
@@ -210,4 +228,8 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
   await expect(page.getByText('Content locked')).toBeVisible();
   await expect(page.getByText('Basic trigonometric integration')).toBeVisible();
   await expect(page.getByText('5 problems')).toBeVisible();
+  const progress = page.getByRole('region', { name: 'Student progress' });
+  await expect(progress.getByText('student@example.test')).toBeVisible();
+  await expect(progress.getByText('2 / 5')).toBeVisible();
+  await expect(progress.getByText('In progress')).toBeVisible();
 });

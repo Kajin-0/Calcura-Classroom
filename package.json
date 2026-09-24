@@ -24,6 +24,7 @@
     "supabase:stop": "npm run supabase -- stop",
     "supabase:reset": "npm run supabase -- db reset --local",
     "test:db": "npm run supabase -- test db --local",
+    "test:assignment-results:local": "node tests/assignment-results-local-smoke.mjs",
     "types:db": "supabase gen types --local > src/types/database.generated.ts && prettier --write src/types/database.generated.ts"
   },
   "dependencies": {

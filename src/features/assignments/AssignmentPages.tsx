@@ -11,6 +11,7 @@ import {
   archiveAssignment,
   discardAssignment,
   getAssignmentById,
+  getAssignmentStudentProgress,
   listAssignmentItems,
   publishAssignment,
   reactivateAssignment,
@@ -19,6 +20,7 @@ import {
   updateAssignmentItem,
   updateAssignmentMetadata,
   type AssignmentItemSummary,
+  type AssignmentStudentProgress,
   type AssignmentStatus,
   type AssignmentSummary,
 } from './assignmentService';
@@ -151,6 +153,131 @@ function PracticeBlock({
         </div>
       )}
     </li>
+  );
+}
+
+function AssignmentStudentProgressSection({
+  assignmentId,
+}: {
+  assignmentId: string;
+}) {
+  const [rows, setRows] = useState<AssignmentStudentProgress[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const load = useCallback(
+    () => getAssignmentStudentProgress(assignmentId),
+    [assignmentId],
+  );
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    const result = await load();
+    if (result.ok) setRows(result.value);
+    else setError(true);
+    setLoading(false);
+  }, [load]);
+
+  useEffect(() => {
+    let current = true;
+    void load().then((result) => {
+      if (!current) return;
+      if (result.ok) setRows(result.value);
+      else setError(true);
+      setLoading(false);
+    });
+    return () => {
+      current = false;
+    };
+  }, [load]);
+
+  const statusLabel = (status: AssignmentStudentProgress['status']) =>
+    status === 'completed'
+      ? 'Completed'
+      : status === 'in_progress'
+        ? 'In progress'
+        : 'Not started';
+
+  return (
+    <section
+      className="assignment-content-section"
+      aria-labelledby="student-progress-title"
+    >
+      <div className="assignment-form-heading">
+        <div>
+          <h2 id="student-progress-title">Student progress</h2>
+          <p className="muted-copy">
+            Completion is based on terminal results for assigned problem slots.
+          </p>
+        </div>
+        <button
+          className="text-button"
+          type="button"
+          onClick={() => void refresh()}
+          disabled={loading}
+        >
+          {loading ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </div>
+      {loading ? (
+        <p className="list-status" role="status">
+          Loading student progress…
+        </p>
+      ) : null}
+      {error ? (
+        <div className="inline-state" role="alert">
+          <p>Student progress is unavailable right now.</p>
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => void refresh()}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+      {!loading && !error && rows.length === 0 ? (
+        <p className="section-empty">
+          No active students are enrolled in this class yet.
+        </p>
+      ) : null}
+      {!loading && !error && rows.length > 0 ? (
+        <>
+          {!rows.some((row) => row.completedProblemCount > 0) ? (
+            <p className="muted-copy">No submitted results yet.</p>
+          ) : null}
+          <ul
+            className="assignment-student-progress"
+            aria-label="Enrolled student progress"
+          >
+            {rows.map((row) => (
+              <li key={row.studentUserId}>
+                <span className="assignment-student-identity">
+                  {row.email || 'Student'}
+                </span>
+                <span className="assignment-student-count">
+                  {row.completedProblemCount} / {row.totalProblemCount}
+                </span>
+                <span className="assignment-student-status">
+                  {statusLabel(row.status)}
+                </span>
+                {row.lastActivityAt ? (
+                  <time dateTime={row.lastActivityAt} className="muted-copy">
+                    {new Intl.DateTimeFormat(undefined, {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    }).format(new Date(row.lastActivityAt))}
+                  </time>
+                ) : (
+                  <span className="muted-copy">No activity</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </section>
   );
 }
 
@@ -538,6 +665,10 @@ function AssignmentBuilder({
         )}
       </section>
 
+      {assignment.status !== 'draft' ? (
+        <AssignmentStudentProgressSection assignmentId={assignment.id} />
+      ) : null}
+
       <section
         className="assignment-lifecycle-section"
         aria-labelledby="assignment-lifecycle-title"
@@ -546,8 +677,9 @@ function AssignmentBuilder({
         {assignment.status === 'draft' ? (
           <div className="lifecycle-actions">
             <p className="muted-copy">
-              Publishing freezes the practice blocks. Students will receive
-              assignment access in a later Calcura integration phase.
+              Publishing freezes the practice blocks. Students can access this
+              assignment when the Classroom schema is deployed and the Calcura
+              Classroom feature is enabled.
             </p>
             <button
               className="button button-primary"

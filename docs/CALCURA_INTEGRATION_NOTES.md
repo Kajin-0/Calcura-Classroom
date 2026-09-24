@@ -20,9 +20,11 @@ These are read-only observations from the existing local Calcura checkout. No Ca
 
 Potential future analytics concepts are summary rates/counts, skill and technique evidence, time-bounded trends, first-attempt outcomes, focus recommendations, and privacy-aware exports. Classroom must not copy the implementation or depend on Calcura's internal source paths. A versioned event contract and reviewed aggregation semantics sit between the student application and cloud analytics.
 
-## Future student integration
+## Student result integration (Phase 5)
 
-Calcura will eventually add class join, assigned-work discovery, assignment launch, and versioned learning-event submission to its student experience. It will continue to generate problems, run solving interactions, and decide correctness. Contract design and student-side changes belong to the later student integration phase. Staff will also eventually need a privacy-reviewed student display identity; do not copy Auth emails into enrollment rows as a shortcut.
+Calcura consumes published assignments through the stable activity-key contract, continues to generate/solve/check math through its own guided runtime, and records ordinary personal attempts independently. Phase 5 additionally sends one minimal terminal assignment-slot result through `record_assignment_problem_result`. That RPC derives the user from `auth.uid()` and validates current active enrollment and published assignment state. A dedicated account-scoped local outbox supports idempotent retry; assignment progress is recovered from persisted result slots plus pending local results. No generated math, answer, problem object, or guided-event stream is uploaded. Teacher email/progress is returned only by the membership-authorized `get_assignment_student_progress` RPC; emails are not copied into enrollment rows or made generally readable.
+
+Terminal outcomes are `correct` and `surrendered`; `abandoned` remains only a personal Calcura attempt and does not complete a slot. Performance/taxonomy values are client-reported context, not cryptographically verified academic truth. Phase 5 teacher UI displays completion counts/status only. Rich LearningEvent telemetry and analytics remain deferred to later phases. Production remains gated because the hosted shared schema has not been deployed.
 
 ## Assignment activity V1 capability mapping
 
@@ -41,4 +43,4 @@ These function names are a current implementation mapping only, not durable Clas
 
 ## Future change and risk
 
-Calcura currently stores most practice performance locally. Cloud classroom analytics will require an intentional synchronization and consent/privacy design. Do not retrofit cloud upload or alter student auth/performance behavior during this database foundation phase. The integration phase must define event minimization, offline retry, duplicate handling, deletion/export, and classroom authorization before any upload path is enabled.
+Calcura continues to keep generic personal practice progress separate from classroom assignment results. This narrow Phase 5 result contract establishes offline retry, duplicate handling, student authorization, and teacher progress for terminal assignment slots only. It is not a rich pedagogical event stream and must not be expanded into step-level uploads or Phase 6 analytics without separate privacy, retention, and product review.

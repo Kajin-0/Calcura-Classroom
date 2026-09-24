@@ -34,6 +34,8 @@ This repository is the teacher and institutional control plane. Read `README.md`
 - Classroom assignments store teacher intent only. Never persist generated math, answer/solution content, solver internals, or Calcura taxonomy IDs as assignment identity. Published and archived practice blocks are immutable at the database layer.
 - Assignment activity identity is `(activity_contract_version, activity_key)`. V1 semantics are stable; incompatible practice-family changes require a new versioned key and a reviewed Calcura mapping.
 - Workspace roles are `owner`, `admin`, and `educator`. Students are class enrollees, not administrative workspace members.
+- `assignment_problem_results` is one client-reported terminal result per student/assignment-item/problem ordinal. Only `correct` and `surrendered` count; abandoned attempts remain personal Calcura history only. The authenticated-only recording RPC derives `student_user_id` from `auth.uid()`, validates active enrollment and assignment/class/workspace lifecycle, and acknowledges duplicate slots without overwriting the first result.
+- Assignment results contain no generated mathematics. Performance and taxonomy columns are browser-reported context, not cryptographically verified academic truth. Students may select only their own rows; teacher email/progress is exposed only through the independently membership-authorized progress RPC.
 
 ## Validation
 

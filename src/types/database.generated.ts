@@ -75,6 +75,80 @@ export type Database = {
           },
         ];
       };
+      assignment_problem_results: {
+        Row: {
+          assignment_item_id: string;
+          attempts: number;
+          client_result_id: string;
+          client_timestamp_ms: number;
+          created_at: string;
+          family: string;
+          grade_points: number | null;
+          id: string;
+          outcome: string;
+          problem_ordinal: number;
+          schema_version: number;
+          skill_id: string;
+          source_difficulty: string;
+          student_user_id: string;
+          surrenders: number;
+          technique: string;
+          tier: number;
+          time_seconds: number;
+          variant: string;
+        };
+        Insert: {
+          assignment_item_id: string;
+          attempts: number;
+          client_result_id: string;
+          client_timestamp_ms: number;
+          created_at?: string;
+          family: string;
+          grade_points?: number | null;
+          id?: string;
+          outcome: string;
+          problem_ordinal: number;
+          schema_version?: number;
+          skill_id: string;
+          source_difficulty: string;
+          student_user_id: string;
+          surrenders: number;
+          technique: string;
+          tier: number;
+          time_seconds: number;
+          variant: string;
+        };
+        Update: {
+          assignment_item_id?: string;
+          attempts?: number;
+          client_result_id?: string;
+          client_timestamp_ms?: number;
+          created_at?: string;
+          family?: string;
+          grade_points?: number | null;
+          id?: string;
+          outcome?: string;
+          problem_ordinal?: number;
+          schema_version?: number;
+          skill_id?: string;
+          source_difficulty?: string;
+          student_user_id?: string;
+          surrenders?: number;
+          technique?: string;
+          tier?: number;
+          time_seconds?: number;
+          variant?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assignment_problem_results_assignment_item_id_fkey';
+            columns: ['assignment_item_id'];
+            isOneToOne: false;
+            referencedRelation: 'assignment_items';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       assignments: {
         Row: {
           class_id: string;
@@ -285,6 +359,17 @@ export type Database = {
           workspace_type: string;
         }[];
       };
+      get_assignment_student_progress: {
+        Args: { p_assignment_id: string };
+        Returns: {
+          completed_problem_count: number;
+          last_activity_at: string;
+          progress_status: string;
+          student_email: string;
+          student_user_id: string;
+          total_problem_count: number;
+        }[];
+      };
       get_class_join_code: { Args: { p_class_id: string }; Returns: string };
       join_class_by_code: {
         Args: { p_code: string };
@@ -320,6 +405,27 @@ export type Database = {
           title: string;
           updated_at: string;
         }[];
+      };
+      record_assignment_problem_result: {
+        Args: {
+          p_assignment_item_id: string;
+          p_attempts: number;
+          p_client_result_id: string;
+          p_client_timestamp_ms: number;
+          p_family: string;
+          p_grade_points: number;
+          p_outcome: string;
+          p_problem_ordinal: number;
+          p_schema_version?: number;
+          p_skill_id: string;
+          p_source_difficulty: string;
+          p_surrenders: number;
+          p_technique: string;
+          p_tier: number;
+          p_time_seconds: number;
+          p_variant: string;
+        };
+        Returns: string;
       };
       reorder_assignment_items: {
         Args: { p_assignment_id: string; p_item_ids: string[] };
