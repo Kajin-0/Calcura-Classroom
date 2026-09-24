@@ -1,6 +1,6 @@
 # Supabase baseline status
 
-## Phase 0 findings
+## Phase 0 remote baseline findings
 
 - Supabase CLI before this work: not installed on the VPS PATH.
 - CLI authentication: no Supabase access-token file was present in the local CLI directory. No credential contents were inspected or copied.
@@ -8,8 +8,18 @@
 - Existing project access: unavailable from this VPS state. No remote database connection or schema pull was attempted.
 - Local Supabase project: initialized from the current repo-pinned CLI with `supabase init`; its safe `config.toml` is committed. Docker-backed local database was not started during Phase 0.
 - The generated local config currently selects PostgreSQL major version 17, the CLI template default. The remote project's actual PostgreSQL major version was not available and must be confirmed before treating the local database as a faithful baseline.
-- Baseline migration: none generated. Classroom has no SQL migrations yet.
+- Remote baseline migration: none generated. The hosted schema still needs a reviewed baseline before the first production migration.
 - Remote project changes: none. No remote link, pull, migration-history write, push, or database mutation was performed.
+
+## Phase 1 local migration status
+
+- Supabase CLI: project-pinned `2.117.0` (verified with the repository script).
+- Local Supabase initialization: completed during Phase 0; `supabase/config.toml` is the checked-in local configuration.
+- Local database migration: `supabase/migrations/20260924002726_classroom_foundation.sql` was created with `npm run supabase -- migration new classroom_foundation`. It creates only new Classroom tables/functions/policies and is intended for local development and testing in this phase.
+- Local database: the CLI's database-only local service started successfully via `npm run supabase:start`; `npm run supabase:reset` rebuilt PostgreSQL 17 from the checked-in migration, and `npm run test:db` passed all 93 pgTAP assertions. `supabase start` attempts returned only the local DB URL and stopped API services; a full start began pulling the latest Studio image and was stopped. Thus PostgreSQL privilege behavior is certified locally, but no PostgREST HTTP probe was completed. Current official column-grant guidance was reviewed.
+- Remote access/schema inspection: unavailable from existing VPS configuration; no project reference was discovered, no Supabase remote was linked, and no production schema was inspected or invented.
+- Baseline migration for production: not generated. The Phase 1 migration must not be applied to production until the existing Calcura objects and migration history have been safely reconciled.
+- Production Supabase changes: none.
 
 ## Existing Calcura repository evidence
 
@@ -21,11 +31,11 @@ Supabase's current local-development guide documents `supabase init` for configu
 
 ## Before the first production migration
 
-1. Obtain the confirmed project reference and database connection method from the project operator without placing credentials in Git.
-2. Authenticate the pinned CLI through the approved Supabase account workflow and link the intended project.
-3. Choose an explicitly read-only schema inspection/export procedure and review the generated SQL for personal data, secrets, and unsupported platform objects.
-4. Review the exact first-pull migration-history behavior and obtain phase authorization before recording a baseline remotely.
-5. Verify the baseline locally, document the complete public schema, and only then design Workspace/Classroom migrations and RLS tests.
+1. Obtain the confirmed project reference and database connection method without placing credentials in Git.
+2. Choose a reviewed, read-only schema inspection/export procedure; review generated SQL for personal data, secrets, and unsupported platform objects.
+3. Reconcile existing public objects—including Calcura's `communication_preferences`—with a checked-in baseline and migration history.
+4. Review the exact first-pull migration-history behavior and obtain authorization before any remote history write.
+5. Only after baseline review, plan a separate authorized production deployment. The locally certified Phase 1 migration is not a substitute for a remote baseline.
 
 Useful current CLI commands once those prerequisites are met:
 
@@ -36,6 +46,8 @@ npm run supabase -- init
 npm run supabase -- link --project-ref CONFIRMED_PROJECT_REF
 npm run supabase -- db pull
 ```
+
+Those commands are intentionally not run by Phase 1. Local-only commands are `npm run supabase:start`, `npm run supabase:reset`, and `npm run test:db`; none includes `--linked`.
 
 Exact local initialization commands run in this phase:
 

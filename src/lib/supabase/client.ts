@@ -1,9 +1,10 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '../../types/database.generated';
 import { readSupabaseConfig } from './config';
 
-let client: SupabaseClient | null | undefined;
+let client: SupabaseClient<Database> | null | undefined;
 
-export function getSupabaseClient(): SupabaseClient | null {
+export function getSupabaseClient(): SupabaseClient<Database> | null {
   if (client !== undefined) return client;
 
   const config = readSupabaseConfig();
@@ -12,7 +13,7 @@ export function getSupabaseClient(): SupabaseClient | null {
     return client;
   }
 
-  client = createClient(config.url, config.publishableKey, {
+  client = createClient<Database>(config.url, config.publishableKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,

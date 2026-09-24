@@ -7,12 +7,14 @@ Browser
   ↓
 Calcura Classroom React SPA
   ↓  Supabase JS with project URL + publishable key
-Supabase Auth / Data API / future Edge Functions
+Supabase Auth / Data API / narrowly scoped RPCs / future Edge Functions
   ↓
-Postgres with RLS
+Postgres with grants + RLS
 ```
 
-The browser owns presentation and short-lived interaction state. Supabase Auth owns identity and session issuance. Postgres policies are the authorization boundary for exposed data. Future Edge Functions handle trusted operations that must not run with browser privileges.
+The browser owns presentation and short-lived interaction state. Supabase Auth owns identity and session issuance. Postgres grants and row policies together are the authorization boundary for exposed data. Phase 1 adds a lazy personal-workspace RPC and a narrow join-by-code RPC; no privileged credentials enter the browser. Future Edge Functions handle trusted operations that cannot safely run through narrowly scoped database operations.
+
+The local Phase 1 tenancy model is `Auth user → workspace membership (staff)` and `Auth user → class enrollment (student)`. Students do not become workspace members. `classroom_private` holds RLS helpers and is not an exposed Data API schema. Hosted schema reconciliation is still required before deploying these migrations.
 
 ## Repository ownership
 
@@ -49,7 +51,7 @@ Workspace entitlements
 React authorization UX
 ```
 
-Stripe is the billing authority. Supabase/Postgres is the application authorization authority. The browser never decides entitlements from a checkout result or a client-editable field. No Stripe implementation is part of Phase 0.
+Stripe is the billing authority. Supabase/Postgres is the application authorization authority. The browser never decides entitlements from a checkout result or a client-editable field. No Stripe implementation is part of Phase 1.
 
 ## Learning data boundary
 

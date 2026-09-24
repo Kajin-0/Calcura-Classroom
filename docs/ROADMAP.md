@@ -2,6 +2,8 @@
 
 The phases deliberately keep database tenancy and policy design ahead of product breadth.
 
+Phase 0 is complete. Phase 1 implements and tests the local workspace/classroom schema and RLS boundary; production remains untouched and its existing schema still needs to be baselined. The next planned work is Phase 2.
+
 | Phase | Scope                                 |
 | ----- | ------------------------------------- |
 | 0     | Engineering foundation                |

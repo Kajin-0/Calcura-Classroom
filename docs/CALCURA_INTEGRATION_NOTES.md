@@ -22,8 +22,8 @@ Potential future analytics concepts are summary rates/counts, skill and techniqu
 
 ## Future student integration
 
-Calcura will eventually add class join, assigned-work discovery, assignment launch, and learning-event submission to its student experience. It will continue to generate problems, run solving interactions, and decide correctness. Contract design and student-side changes belong to a later integration phase.
+Calcura will eventually add class join, assigned-work discovery, assignment launch, and versioned learning-event submission to its student experience. It will continue to generate problems, run solving interactions, and decide correctness. Contract design and student-side changes belong to the later student integration phase. Staff will also eventually need a privacy-reviewed student display identity; do not copy Auth emails into enrollment rows as a shortcut.
 
 ## Future change and risk
 
-Calcura currently stores most practice performance locally. Cloud classroom analytics will require an intentional synchronization and consent/privacy design. Do not retrofit cloud upload or alter the student auth/performance implementation during Classroom Phase 0. The integration phase must define event minimization, offline retry, duplicate handling, deletion/export, and classroom authorization before any upload path is enabled.
+Calcura currently stores most practice performance locally. Cloud classroom analytics will require an intentional synchronization and consent/privacy design. Do not retrofit cloud upload or alter student auth/performance behavior during this database foundation phase. The integration phase must define event minimization, offline retry, duplicate handling, deletion/export, and classroom authorization before any upload path is enabled.

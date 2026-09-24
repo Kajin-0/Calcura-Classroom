@@ -1,6 +1,6 @@
 # Calcura Classroom
 
-Calcura Classroom is the future teacher and institutional control plane for Calcura. This repository is at **Phase 0: Engineering foundation**. It provides a buildable React application shell, shared Supabase email OTP compatibility, local development configuration, and engineering contracts. It is not yet a classroom management system.
+Calcura Classroom is the future teacher and institutional control plane for Calcura. The repository has completed **Phase 0: Engineering foundation** and **Phase 1: Workspace + Classroom schema + RLS foundation** locally. It is not yet a classroom management product, and the migration has not been applied to the hosted Supabase project.
 
 ## Repository responsibilities
 
@@ -57,14 +57,24 @@ npm run supabase -- status
 npm run supabase -- stop
 ```
 
-The repository is intentionally initialized without classroom migrations. Starting the local stack is optional and requires Docker. See [Development](docs/DEVELOPMENT.md) and [Supabase baseline](docs/SUPABASE_BASELINE.md). Do not run linked resets, pushes, or migration-history repair against a remote project as part of Phase 0.
+The local migration creates workspaces, staff membership, classes, enrollments, personal workspace bootstrap, join codes, and RLS. Starting the local stack requires Docker:
+
+```bash
+npm run supabase:start
+npm run supabase:reset
+npm run test:db
+npm run types:db
+npm run supabase:stop
+```
+
+These commands target the local stack only. Do not run linked resets, pushes, or migration-history repair. The hosted Calcura schema must first be baselined and reconciled; production Supabase remains untouched in Phase 1. See [Development](docs/DEVELOPMENT.md), [RLS security model](docs/RLS_SECURITY_MODEL.md), and [Supabase baseline](docs/SUPABASE_BASELINE.md).
 
 ## Security and architecture
 
-See [AGENTS.md](AGENTS.md) for mandatory engineering rules, [Auth](docs/AUTH.md) for the OTP contract, [Architecture](docs/ARCHITECTURE.md) for ownership boundaries, and [Data model](docs/DATA_MODEL.md) for concepts that are not yet SQL.
+See [AGENTS.md](AGENTS.md) for mandatory engineering rules, [Auth](docs/AUTH.md) for the OTP contract, [Architecture](docs/ARCHITECTURE.md) for ownership boundaries, and [Data model](docs/DATA_MODEL.md) for the implemented local schema and future conceptual entities.
 
-Every future exposed Supabase table requires RLS and membership-based policies. A publishable key is not an authorization rule. Workspace access is resolved server-side from authenticated identity, active workspace, role, plan, and policy-backed entitlements.
+Every exposed Supabase table requires explicit grants and RLS. A publishable key is not an authorization rule. Phase 1 workspace access is resolved from active server-side workspace membership; student access is class-enrollment scoped.
 
 ## Roadmap
 
-The planned order is recorded in [Roadmap](docs/ROADMAP.md). The next phase is **Phase 1 — Workspace + Classroom schema + RLS**. This foundation does not create workspaces, classes, enrollments, assignments, analytics, or billing tables.
+The planned order is recorded in [Roadmap](docs/ROADMAP.md). The next phase is **Phase 2 — Teacher Class Management UI**. Assignments, analytics, billing, plans, entitlements, Team, School, and University are not implemented.

@@ -19,7 +19,12 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:ci": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build",
-    "supabase": "supabase"
+    "supabase": "supabase",
+    "supabase:start": "npm run supabase -- db start",
+    "supabase:stop": "npm run supabase -- stop",
+    "supabase:reset": "npm run supabase -- db reset --local",
+    "test:db": "npm run supabase -- test db --local",
+    "types:db": "supabase gen types --local > src/types/database.generated.ts && prettier --write src/types/database.generated.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.1",

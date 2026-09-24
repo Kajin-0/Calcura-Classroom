@@ -31,18 +31,21 @@ CI installs Chromium and runs the browser suite without project credentials.
 
 ## Local Supabase
 
-The pinned project CLI is the documented npm installation method. Initialize once and start the local stack when Docker is available:
+Use Node 24 (`.nvmrc`) and npm. The pinned project CLI is run through the npm script, as in the current Supabase CLI guidance. Docker is required. Phase 1 uses Supabase CLI's database-only local service for migrations, pgTAP, and type generation. `supabase start` and `supabase start --exclude ...` were also attempted to exercise PostgREST, but CLI 2.117.0 returned only `DB_URL` and stopped the API containers; a full start began pulling the current Studio image. The REST/Auth/Studio stack was not left running. PostgreSQL grants are tested directly via pgTAP; the current Supabase column-privilege guidance was reviewed, but a local PostgREST HTTP probe remains unverified. Avoid pulling the unrelated Studio stack only for this phase. Phase 1 commands are explicitly local:
 
 ```bash
-npm run supabase -- init
-npm run supabase -- start
-npm run supabase -- status
-npm run supabase -- stop
+npm run supabase:start
+npm run supabase:reset
+npm run test:db
+npm run types:db
+npm run supabase -- db lint --local
+npm run supabase -- db advisors --local
+npm run supabase:stop
 ```
 
-`supabase start` prints local API values; use them only for local development. `supabase db reset` recreates the local database and applies checked-in migrations. It is destructive to local Supabase data. Do not use `--linked` in this phase. `supabase db pull` and `supabase db push` target a linked remote project by default and are not routine Phase 0 commands.
+`supabase:reset` recreates only the local database and applies checked-in migrations; local database data is discarded. The local `db lint` and `db advisors` commands inspect the local database. The generated database type file is `src/types/database.generated.ts`; regenerate it after schema changes and commit it with the migration.
 
-The initial remote baseline needs an explicit review because the first `db pull` may record a migration as applied in Supabase's remote migration-history table. See [Supabase baseline](SUPABASE_BASELINE.md). No migration history is to be written remotely during this phase.
+Do not use `--linked`, `db pull`, `db push`, remote migration repair, or a remote SQL editor during Phase 1. The production Supabase schema is not baselined, and local migrations are not production-ready until the baseline is reconciled. See [Supabase baseline](SUPABASE_BASELINE.md).
 
 ## Repository workflow
 

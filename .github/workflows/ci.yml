@@ -30,3 +30,20 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+
+  database-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run supabase:start
+      - run: npm run supabase:reset
+      - run: npm run test:db
+      - run: npm run types:db
+      - run: git diff --exit-code -- src/types/database.generated.ts
+      - if: always()
+        run: npm run supabase:stop
