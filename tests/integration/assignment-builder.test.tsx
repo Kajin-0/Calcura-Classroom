@@ -468,7 +468,7 @@ describe('teacher assignment workflow', () => {
       name: 'Student progress',
     });
     expect(
-      within(section).getByText(
+      await within(section).findByText(
         'No active students are enrolled in this class yet.',
       ),
     ).toBeVisible();
