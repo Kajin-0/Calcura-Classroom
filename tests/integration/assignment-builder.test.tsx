@@ -101,6 +101,11 @@ const item: AssignmentItemSummary = {
   created_at: '2026-09-24T00:00:00Z',
   updated_at: '2026-09-24T00:00:00Z',
 };
+const itemTen: AssignmentItemSummary = {
+  ...item,
+  problem_count: 10,
+  updated_at: '2026-09-24T00:01:00Z',
+};
 const session = {
   user: { id: 'teacher-a', email: 'teacher@example.com' },
 } as Session;
@@ -252,6 +257,79 @@ describe('teacher assignment workflow', () => {
     expect(screen.queryByLabelText('Activity')).not.toBeInTheDocument();
   });
 
+  it('creates and reloads a ten-problem block without truncation', async () => {
+    vi.mocked(addAssignmentItem).mockResolvedValue({
+      ok: true,
+      value: itemTen,
+    });
+    const view = renderApp('/app/classes/class-a/assignments/assignment-a');
+    await screen.findByRole('button', { name: 'Add block' });
+    fireEvent.change(screen.getByLabelText('Activity'), {
+      target: { value: 'integration.u_substitution.v1' },
+    });
+    fireEvent.change(screen.getByLabelText('Problems'), {
+      target: { value: '10' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add block' }));
+    await waitFor(() =>
+      expect(addAssignmentItem).toHaveBeenCalledWith({
+        assignmentId: draft.id,
+        activityKey: 'integration.u_substitution.v1',
+        problemCount: 10,
+      }),
+    );
+    expect(
+      within(screen.getAllByRole('listitem')[0]!).getByLabelText('Problems'),
+    ).toHaveValue(10);
+
+    view.unmount();
+    vi.mocked(listAssignmentItems).mockResolvedValue({
+      ok: true,
+      value: [itemTen],
+    });
+    renderApp('/app/classes/class-a/assignments/assignment-a');
+    await waitFor(() =>
+      expect(screen.getAllByLabelText('Problems')[0]).toHaveValue(10),
+    );
+  });
+
+  it('makes unsaved count edits explicit and persists 5 to 10 across reload', async () => {
+    vi.mocked(listAssignmentItems).mockResolvedValue({
+      ok: true,
+      value: [item],
+    });
+    vi.mocked(updateAssignmentItem).mockResolvedValue({
+      ok: true,
+      value: itemTen,
+    });
+    const view = renderApp('/app/classes/class-a/assignments/assignment-a');
+    const problemInputs = await screen.findAllByLabelText('Problems');
+    fireEvent.change(problemInputs[0]!, { target: { value: '10' } });
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Unsaved changes — select Save block to apply.',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save block' }));
+    await waitFor(() =>
+      expect(updateAssignmentItem).toHaveBeenCalledWith(item.id, {
+        activityKey: item.activity_key,
+        problemCount: 10,
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('status')).not.toBeInTheDocument(),
+    );
+
+    view.unmount();
+    vi.mocked(listAssignmentItems).mockResolvedValue({
+      ok: true,
+      value: [itemTen],
+    });
+    renderApp('/app/classes/class-a/assignments/assignment-a');
+    await waitFor(() =>
+      expect(screen.getAllByLabelText('Problems')[0]).toHaveValue(10),
+    );
+  });
+
   it('reorders and removes draft practice blocks through the builder', async () => {
     const secondItem = {
       ...item,
@@ -362,7 +440,9 @@ describe('teacher assignment workflow', () => {
     const section = await screen.findByRole('region', {
       name: 'Student progress',
     });
-    expect(within(section).getByText('student-a@example.test')).toBeVisible();
+    expect(
+      await within(section).findByText('student-a@example.test'),
+    ).toBeVisible();
     expect(within(section).getByText('0 / 5')).toBeVisible();
     expect(within(section).getByText('Not started')).toBeVisible();
     expect(within(section).getByText('2 / 5')).toBeVisible();
@@ -414,7 +494,9 @@ describe('teacher assignment workflow', () => {
       name: 'Student progress',
     });
     expect(
-      within(section).getByText('Student progress is unavailable right now.'),
+      await within(section).findByText(
+        'Student progress is unavailable right now.',
+      ),
     ).toBeVisible();
     fireEvent.click(within(section).getByRole('button', { name: 'Retry' }));
     expect(

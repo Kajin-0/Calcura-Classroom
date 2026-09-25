@@ -158,47 +158,64 @@ describe('assignment service boundaries', () => {
     );
   });
 
-  it('appends the next deterministic position and uses the versioned activity key', async () => {
+  it('persists and reloads an exact ten-problem block with its versioned activity key', async () => {
     const listBuilder = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockResolvedValue({
-        data: [
-          { ...itemRow, position: 0 },
-          { ...itemRow, id: 'item-b', position: 4 },
-        ],
-        error: null,
-      }),
+      order: vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: [
+            { ...itemRow, position: 0 },
+            { ...itemRow, id: 'item-b', position: 4 },
+          ],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: [{ ...itemRow, id: 'item-c', position: 5, problem_count: 10 }],
+          error: null,
+        }),
     };
     const insertBuilder = {
       insert: vi.fn().mockReturnThis(),
       select: vi.fn().mockReturnThis(),
-      single: vi
-        .fn()
-        .mockResolvedValue({ data: { ...itemRow, position: 5 }, error: null }),
+      single: vi.fn().mockResolvedValue({
+        data: { ...itemRow, id: 'item-c', position: 5, problem_count: 10 },
+        error: null,
+      }),
     };
     const client = clientMock({
       from: vi
         .fn()
         .mockReturnValueOnce(listBuilder)
-        .mockReturnValueOnce(insertBuilder),
+        .mockReturnValueOnce(insertBuilder)
+        .mockReturnValueOnce(listBuilder),
     });
     await expect(
       addAssignmentItem(
         {
           assignmentId: 'assignment-a',
           activityKey: 'integration.by_parts.v1',
-          problemCount: 5,
+          problemCount: 10,
         },
         client,
       ),
-    ).resolves.toMatchObject({ ok: true, value: { position: 5 } });
+    ).resolves.toMatchObject({
+      ok: true,
+      value: { position: 5, problem_count: 10 },
+    });
     expect(insertBuilder.insert).toHaveBeenCalledWith({
       assignment_id: 'assignment-a',
       position: 5,
       activity_contract_version: 1,
       activity_key: 'integration.by_parts.v1',
-      problem_count: 5,
+      problem_count: 10,
+    });
+    await expect(
+      listAssignmentItems('assignment-a', client),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: [{ id: 'item-c', problem_count: 10 }],
     });
   });
 
@@ -239,18 +256,32 @@ describe('assignment service boundaries', () => {
     });
   });
 
-  it('lists blocks in position order, updates mutable content, and removes a draft block', async () => {
+  it('lists blocks in position order, saves 5 to 10, reloads it, and removes a draft block', async () => {
     const listBuilder = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       order: vi.fn().mockResolvedValue({ data: [itemRow], error: null }),
+    };
+    const listUpdatedBuilder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockResolvedValue({
+        data: [
+          { ...itemRow, problem_count: 10, updated_at: '2026-09-24T00:01:00Z' },
+        ],
+        error: null,
+      }),
     };
     const updateBuilder = {
       update: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       select: vi.fn().mockReturnThis(),
       maybeSingle: vi.fn().mockResolvedValue({
-        data: { ...itemRow, problem_count: 8 },
+        data: {
+          ...itemRow,
+          problem_count: 10,
+          updated_at: '2026-09-24T00:01:00Z',
+        },
         error: null,
       }),
     };
@@ -267,6 +298,7 @@ describe('assignment service boundaries', () => {
         .fn()
         .mockReturnValueOnce(listBuilder)
         .mockReturnValueOnce(updateBuilder)
+        .mockReturnValueOnce(listUpdatedBuilder)
         .mockReturnValueOnce(deleteBuilder),
     });
     await expect(listAssignmentItems('assignment-a', client)).resolves.toEqual({
@@ -277,9 +309,15 @@ describe('assignment service boundaries', () => {
       ascending: true,
     });
     await expect(
-      updateAssignmentItem('item-a', { problemCount: 8 }, client),
-    ).resolves.toMatchObject({ ok: true, value: { problem_count: 8 } });
-    expect(updateBuilder.update).toHaveBeenCalledWith({ problem_count: 8 });
+      updateAssignmentItem('item-a', { problemCount: 10 }, client),
+    ).resolves.toMatchObject({ ok: true, value: { problem_count: 10 } });
+    expect(updateBuilder.update).toHaveBeenCalledWith({ problem_count: 10 });
+    await expect(
+      listAssignmentItems('assignment-a', client),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: [{ problem_count: 10 }],
+    });
     await expect(removeAssignmentItem('item-a', client)).resolves.toEqual({
       ok: true,
       value: undefined,

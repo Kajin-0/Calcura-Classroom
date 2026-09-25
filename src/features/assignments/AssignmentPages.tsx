@@ -106,6 +106,11 @@ function PracticeBlock({
               />
             </label>
           </div>
+          {changed ? (
+            <p className="muted-copy" role="status" aria-live="polite">
+              Unsaved changes — select Save block to apply.
+            </p>
+          ) : null}
           <div className="practice-block-actions">
             <button
               className="button button-quiet"

@@ -35,6 +35,8 @@ CI installs Chromium and runs the browser suite without project credentials.
 
 Use Node 24 (`.nvmrc`) and npm. The pinned project CLI is run through the npm script, as in the current Supabase CLI guidance. Docker is required. Phase 1 uses Supabase CLI's database-only local service for migrations, pgTAP, and type generation. `supabase start` and `supabase start --exclude ...` were also attempted to exercise PostgREST, but CLI 2.117.0 returned only `DB_URL` and stopped the API containers; a full start began pulling the current Studio image. The REST/Auth/Studio stack was not left running. PostgreSQL grants are tested directly via pgTAP; the current Supabase column-privilege guidance was reviewed, but a local PostgREST HTTP probe remains unverified. Avoid pulling the unrelated Studio stack only for this phase. Phase 1 commands are explicitly local:
 
+Local passwordless sign-in uses the checked-in `supabase/templates/magic_link.html` template, which renders Supabase's six-digit `{{ .Token }}` value expected by both browser apps. With the full local stack running, Auth email is captured locally by Mailpit (normally at `http://127.0.0.1:54324`); this configuration does not change hosted email delivery or templates.
+
 ```bash
 npm run supabase:start
 npm run supabase:reset
