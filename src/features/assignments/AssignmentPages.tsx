@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   assignmentActivities,
+  isAssignmentActivityKey,
   type AssignmentActivityKey,
 } from '../../contracts/assignmentActivities';
 import { useWorkspace } from '../workspaces/useWorkspace';
@@ -43,7 +44,8 @@ function PracticeBlock({
   total,
   editable,
   pending,
-  onSave,
+  editing,
+  onEdit,
   onMove,
   onRemove,
 }: {
@@ -52,76 +54,38 @@ function PracticeBlock({
   total: number;
   editable: boolean;
   pending: boolean;
-  onSave: (
-    item: AssignmentItemSummary,
-    key: AssignmentActivityKey,
-    count: number,
-  ) => void;
+  editing: boolean;
+  onEdit: (item: AssignmentItemSummary) => void;
   onMove: (index: number, direction: -1 | 1) => void;
   onRemove: (item: AssignmentItemSummary) => void;
 }) {
-  const [activityKey, setActivityKey] = useState(item.activity_key);
-  const [count, setCount] = useState(String(item.problem_count));
-
   const activity = assignmentActivities.find(
     (candidate) => candidate.key === item.activity_key,
   );
-  const validKey = assignmentActivities.some(
-    (candidate) => candidate.key === activityKey,
-  );
-  const parsedCount = Number(count);
-  const validCount =
-    Number.isInteger(parsedCount) && parsedCount >= 1 && parsedCount <= 20;
-  const changed =
-    activityKey !== item.activity_key || parsedCount !== item.problem_count;
 
   return (
     <li className="practice-block">
-      {editable ? (
-        <div className="practice-block-editor">
-          <div className="practice-block-fields">
-            <label>
-              Practice activity
-              <select
-                value={activityKey}
-                onChange={(event) => setActivityKey(event.target.value)}
-                disabled={pending}
-              >
-                {assignmentActivities.map((option) => (
-                  <option key={option.key} value={option.key}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Problems
-              <input
-                type="number"
-                min={1}
-                max={20}
-                step={1}
-                value={count}
-                onChange={(event) => setCount(event.target.value)}
-                disabled={pending}
-              />
-            </label>
-          </div>
-          {changed ? (
-            <p className="muted-copy" role="status" aria-live="polite">
-              Unsaved changes — select Save block to apply.
-            </p>
+      <div className="practice-block-readonly">
+        <div className="practice-block-summary">
+          <strong>{activity?.label ?? 'Practice activity'}</strong>
+          <span>
+            {item.problem_count}{' '}
+            {item.problem_count === 1 ? 'problem' : 'problems'}
+          </span>
+          {editing ? (
+            <span className="practice-block-editing">Editing</span>
           ) : null}
+        </div>
+        {editable ? (
           <div className="practice-block-actions">
             <button
-              className="button button-quiet"
+              className="inline-link"
               type="button"
-              disabled={pending || !changed || !validKey || !validCount}
-              onClick={() =>
-                onSave(item, activityKey as AssignmentActivityKey, parsedCount)
-              }
+              aria-label={`Edit block ${index + 1}`}
+              disabled={pending}
+              onClick={() => onEdit(item)}
             >
-              Save block
+              Edit
             </button>
             <button
               className="inline-link"
@@ -148,16 +112,8 @@ function PracticeBlock({
               Remove
             </button>
           </div>
-        </div>
-      ) : (
-        <div className="practice-block-readonly">
-          <strong>{activity?.label ?? 'Practice activity'}</strong>
-          <span>
-            {item.problem_count}{' '}
-            {item.problem_count === 1 ? 'problem' : 'problems'}
-          </span>
-        </div>
-      )}
+        ) : null}
+      </div>
     </li>
   );
 }
@@ -558,6 +514,7 @@ function AssignmentBuilder({
     assignmentActivities[0].key,
   );
   const [problemCount, setProblemCount] = useState('5');
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [loadingItems, setLoadingItems] = useState(false);
   const [itemLoadError, setItemLoadError] = useState(initialItemsError);
   const [pending, setPending] = useState(false);
@@ -583,6 +540,36 @@ function AssignmentBuilder({
   }, [assignment.title]);
 
   const editable = assignment.status === 'draft';
+  const editingItem = items.find((item) => item.id === editingItemId) ?? null;
+  const editingIndex = editingItem
+    ? items.findIndex((item) => item.id === editingItem.id)
+    : -1;
+  const parsedProblemCount = Number(problemCount);
+  const editorHasValidCount =
+    Number.isInteger(parsedProblemCount) &&
+    parsedProblemCount >= 1 &&
+    parsedProblemCount <= 20;
+  const editorHasValidActivity = assignmentActivities.some(
+    (activity) => activity.key === activityKey,
+  );
+  const editorHasChanges = editingItem
+    ? activityKey !== editingItem.activity_key ||
+      parsedProblemCount !== editingItem.problem_count
+    : false;
+
+  const resetEditor = () => {
+    setEditingItemId(null);
+    setActivityKey(assignmentActivities[0].key);
+    setProblemCount('5');
+  };
+
+  const editBlock = (item: AssignmentItemSummary) => {
+    if (!isAssignmentActivityKey(item.activity_key)) return;
+    setEditingItemId(item.id);
+    setActivityKey(item.activity_key);
+    setProblemCount(String(item.problem_count));
+  };
+
   const saveMetadata = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (pending) return;
@@ -635,6 +622,8 @@ function AssignmentBuilder({
     setItems((current) =>
       [...current, result.value].sort((a, b) => a.position - b.position),
     );
+    setActivityKey(assignmentActivities[0].key);
+    setProblemCount('5');
   };
 
   const saveBlock = async (
@@ -659,6 +648,7 @@ function AssignmentBuilder({
         existing.id === item.id ? result.value : existing,
       ),
     );
+    resetEditor();
   };
 
   const moveBlock = async (index: number, direction: -1 | 1) => {
@@ -699,6 +689,7 @@ function AssignmentBuilder({
     setItems((current) =>
       current.filter((candidate) => candidate.id !== item.id),
     );
+    if (editingItemId === item.id) resetEditor();
   };
 
   const runConfirmation = async () => {
@@ -737,6 +728,11 @@ function AssignmentBuilder({
     if (!result.ok) setError(result.error.message);
     else setAssignment(result.value);
   };
+
+  const totalProblemCount = items.reduce(
+    (total, item) => total + item.problem_count,
+    0,
+  );
 
   return (
     <section
@@ -820,11 +816,101 @@ function AssignmentBuilder({
               Each block asks Calcura to generate the selected type of practice
               later.
             </p>
+            <p className="muted-copy" role="status" aria-live="polite">
+              {items.length} {items.length === 1 ? 'block' : 'blocks'} ·{' '}
+              {totalProblemCount}{' '}
+              {totalProblemCount === 1 ? 'problem' : 'problems'} total
+            </p>
           </div>
           {!editable && (
             <span className="content-locked-label">Content locked</span>
           )}
         </div>
+        {editable && !itemLoadError && (
+          <form
+            className="add-block-form"
+            onSubmit={(event) => {
+              if (editingItem) {
+                event.preventDefault();
+                void saveBlock(editingItem, activityKey, parsedProblemCount);
+              } else {
+                void addBlock(event);
+              }
+            }}
+          >
+            <h3>
+              {editingItem
+                ? `Edit practice block ${editingIndex + 1}`
+                : 'New practice block'}
+            </h3>
+            <p
+              className="muted-copy practice-block-editor-status"
+              aria-live="polite"
+            >
+              {editingItem
+                ? editorHasChanges
+                  ? 'Unsaved changes'
+                  : 'Editing an existing assignment block.'
+                : 'New block · not yet part of the assignment.'}
+            </p>
+            <div className="practice-block-fields">
+              <label htmlFor="block-editor-activity">
+                Practice activity
+                <select
+                  id="block-editor-activity"
+                  value={activityKey}
+                  onChange={(event) =>
+                    setActivityKey(event.target.value as AssignmentActivityKey)
+                  }
+                  disabled={pending}
+                >
+                  {assignmentActivities.map((activity) => (
+                    <option key={activity.key} value={activity.key}>
+                      {activity.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label htmlFor="block-editor-count">
+                Problems
+                <input
+                  id="block-editor-count"
+                  type="number"
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={problemCount}
+                  onChange={(event) => setProblemCount(event.target.value)}
+                  disabled={pending}
+                />
+              </label>
+            </div>
+            <div className="practice-block-actions">
+              <button
+                className="button button-quiet"
+                type="submit"
+                disabled={
+                  pending ||
+                  !editorHasValidActivity ||
+                  !editorHasValidCount ||
+                  (editingItem !== null && !editorHasChanges)
+                }
+              >
+                {editingItem ? 'Save changes' : 'Add block to assignment'}
+              </button>
+              {editingItem ? (
+                <button
+                  className="inline-link"
+                  type="button"
+                  disabled={pending}
+                  onClick={resetEditor}
+                >
+                  Cancel edit
+                </button>
+              ) : null}
+            </div>
+          </form>
+        )}
         {loadingItems ? (
           <p className="list-status" role="status">
             Loading practice blocks…
@@ -850,15 +936,14 @@ function AssignmentBuilder({
           <ol className="practice-block-list">
             {items.map((item, index) => (
               <PracticeBlock
-                key={`${item.id}-${item.updated_at}`}
+                key={item.id}
                 item={item}
                 index={index}
                 total={items.length}
                 editable={editable}
                 pending={pending}
-                onSave={(target, key, count) =>
-                  void saveBlock(target, key, count)
-                }
+                editing={item.id === editingItemId}
+                onEdit={editBlock}
                 onMove={(current, direction) =>
                   void moveBlock(current, direction)
                 }
@@ -866,59 +951,6 @@ function AssignmentBuilder({
               />
             ))}
           </ol>
-        )}
-
-        {editable && !itemLoadError && (
-          <form
-            className="add-block-form"
-            onSubmit={(event) => void addBlock(event)}
-          >
-            <h3>Add practice block</h3>
-            <div className="practice-block-fields">
-              <label htmlFor="new-block-activity">
-                Activity
-                <select
-                  id="new-block-activity"
-                  value={activityKey}
-                  onChange={(event) =>
-                    setActivityKey(event.target.value as AssignmentActivityKey)
-                  }
-                  disabled={pending}
-                >
-                  {assignmentActivities.map((activity) => (
-                    <option key={activity.key} value={activity.key}>
-                      {activity.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label htmlFor="new-block-count">
-                Problems
-                <input
-                  id="new-block-count"
-                  type="number"
-                  min={1}
-                  max={20}
-                  step={1}
-                  value={problemCount}
-                  onChange={(event) => setProblemCount(event.target.value)}
-                  disabled={pending}
-                />
-              </label>
-            </div>
-            <button
-              className="button button-quiet"
-              type="submit"
-              disabled={
-                pending ||
-                !Number.isInteger(Number(problemCount)) ||
-                Number(problemCount) < 1 ||
-                Number(problemCount) > 20
-              }
-            >
-              Add block
-            </button>
-          </form>
         )}
       </section>
 

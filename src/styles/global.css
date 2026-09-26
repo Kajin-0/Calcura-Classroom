@@ -866,13 +866,27 @@ h1 {
 }
 .practice-block-readonly {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 14px;
   line-height: 1.45;
 }
-.practice-block-readonly > span {
+.practice-block-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  min-width: 0;
+}
+.practice-block-summary > span {
   color: var(--color-muted);
   white-space: nowrap;
+}
+.practice-block-summary .practice-block-editing {
+  font-size: 0.82rem;
+}
+.practice-block-editor-status {
+  margin: -5px 0 0;
 }
 .add-block-form {
   display: grid;
