@@ -38,7 +38,9 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
     created_at: now,
     updated_at: now,
   };
+  let assignments: (typeof assignment)[] = [];
   let nextItemId = 1;
+  let nextAssignmentId = 1;
   let items: Array<{
     id: string;
     assignment_id: string;
@@ -108,26 +110,98 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
     }
 
     if (path.endsWith('/rpc/publish_assignment')) {
-      assignment = {
-        ...assignment,
+      const body = request.postDataJSON() as { p_assignment_id: string };
+      const target = assignments.find((row) => row.id === body.p_assignment_id);
+      if (!target)
+        throw new Error(`Unknown assignment ${body.p_assignment_id}`);
+      Object.assign(target, {
         status: 'published',
         published_at: now,
         updated_at: now,
-      };
+      });
+      assignment = target;
       await route.fulfill({
         status: 200,
         headers: corsHeaders,
-        json: [assignment],
+        json: [target],
       });
       return;
     }
 
+    if (path.endsWith('/rpc/get_assignment_delete_status')) {
+      const body = request.postDataJSON() as { p_assignment_id: string };
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        json: body.p_assignment_id === 'assignment-playwright',
+      });
+      return;
+    }
+
+    if (path.endsWith('/rpc/duplicate_assignment')) {
+      const body = request.postDataJSON() as { p_assignment_id: string };
+      const source = assignments.find((row) => row.id === body.p_assignment_id);
+      if (!source)
+        throw new Error(`Unknown assignment ${body.p_assignment_id}`);
+      const copyId = `11111111-1111-4111-8111-${String(nextAssignmentId++).padStart(12, '0')}`;
+      const copy = {
+        ...source,
+        id: copyId,
+        title: `${source.title} (Copy)`,
+        due_at: null,
+        status: 'draft',
+        published_at: null,
+        updated_at: now,
+      };
+      assignments.push(copy);
+      const copiedItems = items
+        .filter((item) => item.assignment_id === source.id)
+        .map((item) => ({
+          ...item,
+          id: `00000000-0000-4000-8000-${String(nextItemId++).padStart(12, '0')}`,
+          assignment_id: copyId,
+          created_at: now,
+          updated_at: now,
+        }));
+      items = [...items, ...copiedItems];
+      await route.fulfill({ status: 200, headers: corsHeaders, json: copyId });
+      return;
+    }
+
+    if (path.endsWith('/rpc/delete_assignment')) {
+      const body = request.postDataJSON() as { p_assignment_id: string };
+      if (body.p_assignment_id === 'assignment-playwright') {
+        await route.fulfill({
+          status: 400,
+          headers: corsHeaders,
+          json: { code: 'P0001', message: 'assignment_has_results' },
+        });
+        return;
+      }
+      assignments = assignments.filter(
+        (row) => row.id !== body.p_assignment_id,
+      );
+      items = items.filter(
+        (item) => item.assignment_id !== body.p_assignment_id,
+      );
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+
     if (path.endsWith('/rpc/get_assignment_analytics')) {
+      const body = request.postDataJSON() as { p_assignment_id: string };
+      const assignmentItems = items.filter(
+        (item) => item.assignment_id === body.p_assignment_id,
+      );
       const totalAssignedProblemSlots = items.reduce(
-        (total, item) => total + item.problem_count,
+        (total, item) =>
+          total +
+          (item.assignment_id === body.p_assignment_id
+            ? item.problem_count
+            : 0),
         0,
       );
-      const activities = items.map((item, itemIndex) => {
+      const activities = assignmentItems.map((item, itemIndex) => {
         const problemPositions = Array.from(
           { length: item.problem_count },
           (_, index) => {
@@ -249,9 +323,11 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
         };
         assignment = {
           ...assignment,
+          id: 'assignment-playwright',
           title: body.title,
           due_at: body.due_at,
         };
+        assignments.push(assignment);
         await route.fulfill({
           status: 201,
           headers: corsHeaders,
@@ -259,21 +335,51 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
         });
         return;
       }
+      if (method === 'PATCH') {
+        const id = url.searchParams.get('id')?.replace('eq.', '');
+        const target = assignments.find((row) => row.id === id);
+        if (!target) throw new Error(`Unknown assignment ${id}`);
+        Object.assign(target, request.postDataJSON(), { updated_at: now });
+        assignment = target;
+        await route.fulfill({
+          status: 200,
+          headers: corsHeaders,
+          json: target,
+        });
+        return;
+      }
+      const requestedId = url.searchParams.get('id')?.replace('eq.', '');
       await route.fulfill({
         status: 200,
         headers: corsHeaders,
-        json: url.searchParams.has('id') ? assignment : [],
+        json: requestedId
+          ? (assignments.find((row) => row.id === requestedId) ?? [])
+          : assignments.filter(
+              (row) =>
+                row.class_id ===
+                url.searchParams.get('class_id')?.replace('eq.', ''),
+            ),
       });
       return;
     }
 
     if (path.endsWith('/rpc/reorder_assignment_items')) {
-      const body = request.postDataJSON() as { p_item_ids: string[] };
-      items = body.p_item_ids.map((id, position) => {
-        const item = items.find((candidate) => candidate.id === id);
+      const body = request.postDataJSON() as {
+        p_assignment_id: string;
+        p_item_ids: string[];
+      };
+      const currentItems = items.filter(
+        (item) => item.assignment_id === body.p_assignment_id,
+      );
+      const reordered = body.p_item_ids.map((id, position) => {
+        const item = currentItems.find((candidate) => candidate.id === id);
         if (!item) throw new Error(`Unknown assignment item ${id}`);
         return { ...item, position };
       });
+      items = [
+        ...items.filter((item) => item.assignment_id !== body.p_assignment_id),
+        ...reordered,
+      ];
       await route.fulfill({ status: 204, headers: corsHeaders });
       return;
     }
@@ -282,11 +388,11 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
       if (method === 'POST') {
         const body = request.postDataJSON() as Omit<
           (typeof items)[number],
-          'id' | 'assignment_id' | 'created_at' | 'updated_at'
+          'id' | 'created_at' | 'updated_at'
         >;
         const item = {
           id: `00000000-0000-4000-8000-${String(nextItemId++).padStart(12, '0')}`,
-          assignment_id: assignment.id,
+          assignment_id: body.assignment_id,
           created_at: now,
           updated_at: now,
           ...body,
@@ -312,7 +418,32 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
         });
         return;
       }
-      await route.fulfill({ status: 200, headers: corsHeaders, json: items });
+      if (method === 'GET') {
+        const assignmentId = url.searchParams
+          .get('assignment_id')
+          ?.replace('eq.', '');
+        await route.fulfill({
+          status: 200,
+          headers: corsHeaders,
+          json: items
+            .filter(
+              (item) => !assignmentId || item.assignment_id === assignmentId,
+            )
+            .sort((left, right) => left.position - right.position),
+        });
+        return;
+      }
+      if (method === 'DELETE') {
+        const id = url.searchParams.get('id')?.replace('eq.', '');
+        const removed = items.find((item) => item.id === id);
+        items = items.filter((item) => item.id !== id);
+        await route.fulfill({
+          status: 200,
+          headers: corsHeaders,
+          json: removed ? { id: removed.id } : [],
+        });
+        return;
+      }
       return;
     }
 
@@ -473,4 +604,57 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
     activityRow.getByText('Basic trigonometric integration'),
   ).toBeVisible();
   await expect(activityRow.getByText('50% (1/2)')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Duplicate assignment' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Integration practice (Copy)' }),
+  ).toBeVisible();
+  expect(assignments).toHaveLength(2);
+  const sourceItems = items.filter(
+    (item) => item.assignment_id === 'assignment-playwright',
+  );
+  const copyItems = items.filter(
+    (item) => item.assignment_id !== 'assignment-playwright',
+  );
+  expect(sourceItems).toHaveLength(3);
+  expect(copyItems).toHaveLength(3);
+  expect(copyItems.map((item) => item.id)).not.toEqual(
+    sourceItems.map((item) => item.id),
+  );
+  expect(copyItems.map((item) => item.problem_count)).toEqual([5, 7, 5]);
+  await page.getByRole('button', { name: 'Delete assignment' }).click();
+  const deleteConfirmation = page.getByRole('group', {
+    name: 'Delete assignment?',
+  });
+  await expect(deleteConfirmation).toBeVisible();
+  await deleteConfirmation.getByRole('button', { name: 'Cancel' }).click();
+  await expect(deleteConfirmation).not.toBeVisible();
+  expect(assignments).toHaveLength(2);
+  await page.getByRole('button', { name: 'Delete assignment' }).click();
+  await page
+    .getByRole('group', { name: 'Delete assignment?' })
+    .getByRole('button', { name: 'Delete assignment' })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Calculus I' })).toBeVisible();
+  expect(assignments.map((row) => row.id)).toEqual(['assignment-playwright']);
+
+  await page.getByRole('link', { name: 'Edit Integration practice' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Integration practice' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Delete assignment' }).click();
+  await expect(
+    page.getByRole('status').filter({
+      hasText:
+        'This assignment has student results and cannot be deleted. Duplicate it to make changes.',
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('group', { name: 'Delete assignment?' }),
+  ).not.toBeVisible();
+  await page.getByRole('button', { name: 'Duplicate assignment' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Integration practice (Copy)' }),
+  ).toBeVisible();
+  expect(assignments).toHaveLength(2);
 });

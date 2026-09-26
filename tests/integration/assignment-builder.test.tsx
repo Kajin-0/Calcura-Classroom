@@ -16,9 +16,11 @@ import {
   addAssignmentItem,
   archiveAssignment,
   createAssignment,
-  discardAssignment,
+  deleteAssignment,
+  duplicateAssignment,
   getAssignmentById,
   getAssignmentAnalytics,
+  getAssignmentDeleteStatus,
   listAssignmentItems,
   listClassAssignments,
   publishAssignment,
@@ -55,9 +57,11 @@ vi.mock('../../src/features/assignments/assignmentService', () => ({
   addAssignmentItem: vi.fn(),
   archiveAssignment: vi.fn(),
   createAssignment: vi.fn(),
-  discardAssignment: vi.fn(),
+  deleteAssignment: vi.fn(),
+  duplicateAssignment: vi.fn(),
   getAssignmentById: vi.fn(),
   getAssignmentAnalytics: vi.fn(),
+  getAssignmentDeleteStatus: vi.fn(),
   listAssignmentItems: vi.fn(),
   listClassAssignments: vi.fn(),
   publishAssignment: vi.fn(),
@@ -340,7 +344,15 @@ describe('teacher assignment workflow', () => {
         published_at: '2026-09-24T12:00:00Z',
       },
     });
-    vi.mocked(discardAssignment).mockResolvedValue({
+    vi.mocked(getAssignmentDeleteStatus).mockResolvedValue({
+      ok: true,
+      value: false,
+    });
+    vi.mocked(duplicateAssignment).mockResolvedValue({
+      ok: true,
+      value: '11111111-1111-4111-8111-111111111111',
+    });
+    vi.mocked(deleteAssignment).mockResolvedValue({
       ok: true,
       value: undefined,
     });
@@ -881,24 +893,113 @@ describe('teacher assignment workflow', () => {
     ).toBeVisible();
   });
 
-  it('requires confirmation before discarding a draft', async () => {
+  it('checks delete eligibility and requires explicit confirmation for a draft', async () => {
     renderApp('/app/classes/class-a/assignments/assignment-a');
     fireEvent.click(
-      await screen.findByRole('button', { name: 'Discard draft' }),
-    );
-    const confirmation = screen.getByRole('group', {
-      name: 'Discard this draft?',
-    });
-    expect(discardAssignment).not.toHaveBeenCalled();
-    fireEvent.click(
-      within(confirmation).getByRole('button', { name: 'Discard draft' }),
+      await screen.findByRole('button', { name: 'Delete assignment' }),
     );
     await waitFor(() =>
-      expect(discardAssignment).toHaveBeenCalledWith(draft.id),
+      expect(getAssignmentDeleteStatus).toHaveBeenCalledWith(draft.id),
+    );
+    const confirmation = screen.getByRole('group', {
+      name: 'Delete assignment?',
+    });
+    expect(deleteAssignment).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(confirmation).getByRole('button', { name: 'Cancel' }),
+    );
+    expect(
+      screen.queryByRole('group', { name: 'Delete assignment?' }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete assignment' }));
+    const secondConfirmation = await screen.findByRole('group', {
+      name: 'Delete assignment?',
+    });
+    fireEvent.click(
+      within(secondConfirmation).getByRole('button', {
+        name: 'Delete assignment',
+      }),
+    );
+    await waitFor(() =>
+      expect(deleteAssignment).toHaveBeenCalledWith(draft.id),
     );
     expect(
       await screen.findByRole('heading', { name: 'Assignments' }),
     ).toBeVisible();
+  });
+
+  it('blocks the confirmation when result history protects a published assignment', async () => {
+    vi.mocked(getAssignmentById).mockResolvedValueOnce({
+      ok: true,
+      value: {
+        ...draft,
+        status: 'published',
+        published_at: '2026-09-24T12:00:00Z',
+      },
+    });
+    vi.mocked(getAssignmentDeleteStatus).mockResolvedValueOnce({
+      ok: true,
+      value: true,
+    });
+    renderApp('/app/classes/class-a/assignments/assignment-a');
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete assignment' }),
+    );
+    expect(
+      await screen.findByText(
+        'This assignment has student results and cannot be deleted. Duplicate it to make changes.',
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole('group', { name: 'Delete assignment?' }),
+    ).not.toBeInTheDocument();
+    expect(deleteAssignment).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('button', { name: 'Duplicate assignment' }),
+    ).toBeVisible();
+  });
+
+  it('routes to a fresh draft after duplicating from assignment detail', async () => {
+    const copyId = '11111111-1111-4111-8111-111111111111';
+    vi.mocked(duplicateAssignment).mockResolvedValueOnce({
+      ok: true,
+      value: copyId,
+    });
+    renderApp('/app/classes/class-a/assignments/assignment-a');
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Duplicate assignment' }),
+    );
+    await waitFor(() =>
+      expect(duplicateAssignment).toHaveBeenCalledWith(draft.id),
+    );
+    expect(
+      await screen.findByRole('heading', { name: 'Assignment status' }),
+    ).toBeVisible();
+    await waitFor(() => expect(getAssignmentById).toHaveBeenCalledWith(copyId));
+  });
+
+  it('prevents duplicate double submission while the lifecycle RPC is pending', async () => {
+    const copyId = '22222222-2222-4222-8222-222222222222';
+    let resolveDuplicate:
+      | ((value: Awaited<ReturnType<typeof duplicateAssignment>>) => void)
+      | undefined;
+    vi.mocked(duplicateAssignment).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveDuplicate = resolve;
+      }),
+    );
+    renderApp('/app/classes/class-a/assignments/assignment-a');
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Duplicate assignment' }),
+    );
+    const pendingButton = await screen.findByRole('button', {
+      name: 'Duplicating…',
+    });
+    expect(pendingButton).toBeDisabled();
+    fireEvent.click(pendingButton);
+    expect(duplicateAssignment).toHaveBeenCalledTimes(1);
+    resolveDuplicate?.({ ok: true, value: copyId });
+    await waitFor(() => expect(getAssignmentById).toHaveBeenCalledWith(copyId));
   });
 
   it('shows safe unavailable content when assignment belongs to a different class', async () => {
@@ -940,5 +1041,52 @@ describe('teacher assignment workflow', () => {
     expect(
       screen.getByRole('link', { name: 'New assignment' }),
     ).toHaveAttribute('href', '/app/classes/class-a/assignments/new');
+  });
+
+  it('offers duplicate from the list and keeps result-bearing deletion protected', async () => {
+    const published = {
+      ...draft,
+      status: 'published',
+      published_at: '2026-09-24T12:00:00Z',
+    } as AssignmentSummary;
+    vi.mocked(listClassAssignments).mockResolvedValue({
+      ok: true,
+      value: [published],
+    });
+    vi.mocked(getAssignmentDeleteStatus).mockResolvedValueOnce({
+      ok: true,
+      value: true,
+    });
+    renderApp('/app/classes/class-a');
+
+    const publishedSection = await screen.findByRole('region', {
+      name: 'Published',
+    });
+    fireEvent.click(
+      within(publishedSection).getByRole('button', { name: 'Delete' }),
+    );
+    expect(
+      await within(publishedSection).findByText(
+        'This assignment has student results and cannot be deleted. Duplicate it to make changes.',
+      ),
+    ).toBeVisible();
+    expect(
+      within(publishedSection).queryByRole('group', {
+        name: 'Delete Integration practice?',
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(publishedSection).getByRole('button', { name: 'Duplicate' }),
+    );
+    await waitFor(() =>
+      expect(duplicateAssignment).toHaveBeenCalledWith(published.id),
+    );
+    expect(
+      await screen.findByRole('heading', { name: 'Assignment status' }),
+    ).toBeVisible();
+    expect(getAssignmentById).toHaveBeenCalledWith(
+      '11111111-1111-4111-8111-111111111111',
+    );
   });
 });

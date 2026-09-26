@@ -6,8 +6,11 @@ import {
   archiveAssignment,
   createAssignment,
   discardAssignment,
+  deleteAssignment,
+  duplicateAssignment,
   getAssignmentById,
   getAssignmentAnalytics,
+  getAssignmentDeleteStatus,
   getAssignmentStudentProgress,
   listAssignmentItems,
   listClassAssignments,
@@ -361,6 +364,72 @@ describe('assignment service boundaries', () => {
     ).resolves.toMatchObject({
       ok: false,
       error: { code: 'assignment_requires_items' },
+    });
+  });
+
+  it('validates lifecycle RPC payloads and uses stable mutation contracts', async () => {
+    const copiedId = '11111111-1111-4111-8111-111111111111';
+    const client = clientMock({
+      rpc: vi
+        .fn()
+        .mockResolvedValueOnce({ data: false, error: null })
+        .mockResolvedValueOnce({ data: copiedId, error: null })
+        .mockResolvedValueOnce({ data: null, error: null }),
+    });
+    await expect(
+      getAssignmentDeleteStatus('assignment-a', client),
+    ).resolves.toEqual({
+      ok: true,
+      value: false,
+    });
+    await expect(duplicateAssignment('assignment-a', client)).resolves.toEqual({
+      ok: true,
+      value: copiedId,
+    });
+    await expect(deleteAssignment('assignment-a', client)).resolves.toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(client.rpc).toHaveBeenNthCalledWith(
+      1,
+      'get_assignment_delete_status',
+      {
+        p_assignment_id: 'assignment-a',
+      },
+    );
+    expect(client.rpc).toHaveBeenNthCalledWith(2, 'duplicate_assignment', {
+      p_assignment_id: 'assignment-a',
+    });
+    expect(client.rpc).toHaveBeenNthCalledWith(3, 'delete_assignment', {
+      p_assignment_id: 'assignment-a',
+    });
+
+    const malformed = clientMock({
+      rpc: vi.fn().mockResolvedValue({ data: 'not-a-uuid', error: null }),
+    });
+    await expect(
+      duplicateAssignment('assignment-a', malformed),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'unexpected' },
+    });
+  });
+
+  it('maps a server-side history-protection race without implying deletion', async () => {
+    const client = clientMock({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { code: 'P0001', message: 'assignment_has_results' },
+      }),
+    });
+    await expect(
+      deleteAssignment('assignment-a', client),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: 'assignment_has_results',
+        message: expect.stringContaining('cannot be deleted'),
+      },
     });
   });
 
