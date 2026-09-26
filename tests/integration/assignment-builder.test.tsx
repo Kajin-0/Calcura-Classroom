@@ -363,17 +363,23 @@ describe('teacher assignment workflow', () => {
   });
 
   it('requires at least one block, adds a practice block, then confirms publication and locks content', async () => {
+    vi.mocked(addAssignmentItem).mockResolvedValue({
+      ok: true,
+      value: { ...item, problem_count: 6 },
+    });
     renderApp('/app/classes/class-a/assignments/assignment-a');
     expect(
       await screen.findByRole('button', { name: 'Publish assignment' }),
     ).toBeDisabled();
-    fireEvent.change(screen.getByLabelText('Activity'), {
+    fireEvent.change(screen.getByLabelText('Practice activity'), {
       target: { value: 'integration.by_parts.v1' },
     });
     fireEvent.change(screen.getByLabelText('Problems'), {
       target: { value: '6' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Add block' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add block to assignment' }),
+    );
     await waitFor(() =>
       expect(addAssignmentItem).toHaveBeenCalledWith({
         assignmentId: draft.id,
@@ -381,9 +387,9 @@ describe('teacher assignment workflow', () => {
         problemCount: 6,
       }),
     );
-    expect(await screen.findAllByLabelText('Practice activity')).toHaveLength(
-      1,
-    );
+    expect(
+      within(screen.getAllByRole('listitem')[0]!).getByText('6 problems'),
+    ).toBeVisible();
 
     fireEvent.click(screen.getByRole('button', { name: 'Publish assignment' }));
     const confirmation = screen.getByRole('group', {
@@ -400,7 +406,194 @@ describe('teacher assignment workflow', () => {
       expect(publishAssignment).toHaveBeenCalledWith(draft.id),
     );
     expect(await screen.findByText('Content locked')).toBeVisible();
-    expect(screen.queryByLabelText('Activity')).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Practice activity'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('retains four uniquely identified blocks through add, edit, reorder, and reload', async () => {
+    const persistedItems: AssignmentItemSummary[] = [];
+    const activityKeys: AssignmentItemSummary['activity_key'][] = [
+      'integration.u_substitution.v1',
+      'integration.u_substitution.v1',
+      'integration.by_parts.v1',
+      'integration.log_u_substitution.v1',
+    ];
+    const countsAfterEachAdd = [5, 10, 15, 20];
+
+    vi.mocked(listAssignmentItems).mockImplementation(async () => ({
+      ok: true,
+      value: [...persistedItems].sort((a, b) => a.position - b.position),
+    }));
+    vi.mocked(addAssignmentItem).mockImplementation(async (input) => {
+      const next: AssignmentItemSummary = {
+        ...item,
+        id: `item-${persistedItems.length + 1}`,
+        position: persistedItems.length,
+        activity_key: input.activityKey,
+        problem_count: input.problemCount,
+      };
+      persistedItems.push(next);
+      return { ok: true, value: next };
+    });
+    vi.mocked(updateAssignmentItem).mockImplementation(
+      async (itemId, changes) => {
+        const index = persistedItems.findIndex(
+          (candidate) => candidate.id === itemId,
+        );
+        const existing = persistedItems[index];
+        if (!existing) throw new Error(`Unknown assignment item: ${itemId}`);
+        const updated: AssignmentItemSummary = {
+          ...existing,
+          activity_key: changes.activityKey ?? existing.activity_key,
+          problem_count: changes.problemCount ?? existing.problem_count,
+          updated_at: '2026-09-24T00:02:00Z',
+        };
+        persistedItems[index] = updated;
+        return { ok: true, value: updated };
+      },
+    );
+    vi.mocked(reorderAssignmentItems).mockImplementation(
+      async (_assignmentId, itemIds) => {
+        const reordered = itemIds.map((id) => {
+          const existing = persistedItems.find(
+            (candidate) => candidate.id === id,
+          );
+          if (!existing) throw new Error(`Unknown assignment item: ${id}`);
+          return existing;
+        });
+        persistedItems.splice(
+          0,
+          persistedItems.length,
+          ...reordered.map((candidate, position) => ({
+            ...candidate,
+            position,
+          })),
+        );
+        return { ok: true, value: undefined };
+      },
+    );
+
+    const view = renderApp('/app/classes/class-a/assignments/assignment-a');
+    const addActivity = await screen.findByLabelText('Practice activity');
+    const addCount = screen.getByLabelText('Problems');
+    expect(
+      screen.getByRole('heading', { name: 'New practice block' }),
+    ).toBeVisible();
+    expect(
+      screen.getByText('New block · not yet part of the assignment.'),
+    ).toBeVisible();
+    expect(
+      await screen.findByText('0 blocks · 0 problems total'),
+    ).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Add block to assignment' }),
+    ).toBeVisible();
+
+    for (let index = 0; index < activityKeys.length; index += 1) {
+      fireEvent.change(addActivity, {
+        target: { value: activityKeys[index] },
+      });
+      fireEvent.change(addCount, { target: { value: '5' } });
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Add block to assignment' }),
+      );
+      await waitFor(() => {
+        expect(persistedItems).toHaveLength(index + 1);
+        expect(screen.getAllByRole('listitem')).toHaveLength(index + 1);
+      });
+      expect(
+        await screen.findByText(
+          `${index + 1} ${index === 0 ? 'block' : 'blocks'} · ${countsAfterEachAdd[index]} problems total`,
+        ),
+      ).toBeVisible();
+      expect(
+        new Set(persistedItems.map((candidate) => candidate.id)).size,
+      ).toBe(index + 1);
+      expect(persistedItems[index]).toMatchObject({
+        position: index,
+        activity_key: activityKeys[index],
+        problem_count: 5,
+      });
+    }
+
+    expect(addAssignmentItem).toHaveBeenNthCalledWith(1, {
+      assignmentId: draft.id,
+      activityKey: activityKeys[0],
+      problemCount: 5,
+    });
+    expect(addAssignmentItem).toHaveBeenNthCalledWith(2, {
+      assignmentId: draft.id,
+      activityKey: activityKeys[1],
+      problemCount: 5,
+    });
+    expect(addAssignmentItem).toHaveBeenNthCalledWith(3, {
+      assignmentId: draft.id,
+      activityKey: activityKeys[2],
+      problemCount: 5,
+    });
+    expect(addAssignmentItem).toHaveBeenNthCalledWith(4, {
+      assignmentId: draft.id,
+      activityKey: activityKeys[3],
+      problemCount: 5,
+    });
+
+    let blocks = screen.getAllByRole('listitem');
+    fireEvent.click(
+      within(blocks[1]!).getByRole('button', { name: 'Edit block 2' }),
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Edit practice block 2' }),
+    ).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Problems'), {
+      target: { value: '7' },
+    });
+    expect(screen.getByText('Unsaved changes')).toBeVisible();
+    expect(screen.getByText('4 blocks · 20 problems total')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(persistedItems[1]?.problem_count).toBe(7));
+    expect(
+      await screen.findByText('4 blocks · 22 problems total'),
+    ).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'New practice block' }),
+    ).toBeVisible();
+
+    blocks = screen.getAllByRole('listitem');
+    fireEvent.click(
+      within(blocks[1]!).getByRole('button', { name: 'Move down' }),
+    );
+    await waitFor(() =>
+      expect(reorderAssignmentItems).toHaveBeenCalledWith(
+        draft.id,
+        expect.any(Array),
+      ),
+    );
+    expect(
+      screen.getAllByRole('listitem').map((block) =>
+        within(block)
+          .getByText(/problems$/)
+          .textContent?.trim(),
+      ),
+    ).toEqual(['5 problems', '5 problems', '7 problems', '5 problems']);
+
+    view.unmount();
+    renderApp('/app/classes/class-a/assignments/assignment-a');
+    await screen.findByRole('heading', { name: 'Integration practice' });
+    expect(
+      await screen.findByText('4 blocks · 22 problems total'),
+    ).toBeVisible();
+    expect(screen.getAllByRole('listitem')).toHaveLength(4);
+    expect(
+      screen.getAllByRole('listitem').map((block) =>
+        within(block)
+          .getByText(/problems$/)
+          .textContent?.trim(),
+      ),
+    ).toEqual(['5 problems', '5 problems', '7 problems', '5 problems']);
+    expect(new Set(persistedItems.map((candidate) => candidate.id)).size).toBe(
+      4,
+    );
   });
 
   it('creates and reloads a ten-problem block without truncation', async () => {
@@ -409,14 +602,17 @@ describe('teacher assignment workflow', () => {
       value: itemTen,
     });
     const view = renderApp('/app/classes/class-a/assignments/assignment-a');
-    await screen.findByRole('button', { name: 'Add block' });
-    fireEvent.change(screen.getByLabelText('Activity'), {
+    await screen.findByRole('button', { name: 'Add block to assignment' });
+    fireEvent.change(screen.getByLabelText('Practice activity'), {
       target: { value: 'integration.u_substitution.v1' },
     });
     fireEvent.change(screen.getByLabelText('Problems'), {
       target: { value: '10' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Add block' }));
+    expect(screen.getByText('0 blocks · 0 problems total')).toBeVisible();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add block to assignment' }),
+    );
     await waitFor(() =>
       expect(addAssignmentItem).toHaveBeenCalledWith({
         assignmentId: draft.id,
@@ -425,8 +621,9 @@ describe('teacher assignment workflow', () => {
       }),
     );
     expect(
-      within(screen.getAllByRole('listitem')[0]!).getByLabelText('Problems'),
-    ).toHaveValue(10);
+      within(screen.getAllByRole('listitem')[0]!).getByText('10 problems'),
+    ).toBeVisible();
+    expect(screen.getByText('1 block · 10 problems total')).toBeVisible();
 
     view.unmount();
     vi.mocked(listAssignmentItems).mockResolvedValue({
@@ -435,7 +632,9 @@ describe('teacher assignment workflow', () => {
     });
     renderApp('/app/classes/class-a/assignments/assignment-a');
     await waitFor(() =>
-      expect(screen.getAllByLabelText('Problems')[0]).toHaveValue(10),
+      expect(
+        within(screen.getAllByRole('listitem')[0]!).getByText('10 problems'),
+      ).toBeVisible(),
     );
   });
 
@@ -449,12 +648,19 @@ describe('teacher assignment workflow', () => {
       value: itemTen,
     });
     const view = renderApp('/app/classes/class-a/assignments/assignment-a');
-    const problemInputs = await screen.findAllByLabelText('Problems');
-    fireEvent.change(problemInputs[0]!, { target: { value: '10' } });
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Unsaved changes — select Save block to apply.',
+    const block = (await screen.findAllByRole('listitem'))[0]!;
+    fireEvent.click(
+      within(block).getByRole('button', { name: 'Edit block 1' }),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Save block' }));
+    expect(
+      screen.getByRole('heading', { name: 'Edit practice block 1' }),
+    ).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Problems'), {
+      target: { value: '10' },
+    });
+    expect(screen.getByText('Unsaved changes')).toBeVisible();
+    expect(screen.getByText('1 block · 5 problems total')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() =>
       expect(updateAssignmentItem).toHaveBeenCalledWith(item.id, {
         activityKey: item.activity_key,
@@ -462,7 +668,7 @@ describe('teacher assignment workflow', () => {
       }),
     );
     await waitFor(() =>
-      expect(screen.queryByRole('status')).not.toBeInTheDocument(),
+      expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument(),
     );
 
     view.unmount();
@@ -472,8 +678,36 @@ describe('teacher assignment workflow', () => {
     });
     renderApp('/app/classes/class-a/assignments/assignment-a');
     await waitFor(() =>
-      expect(screen.getAllByLabelText('Problems')[0]).toHaveValue(10),
+      expect(
+        within(screen.getAllByRole('listitem')[0]!).getByText('10 problems'),
+      ).toBeVisible(),
     );
+  });
+
+  it('cancels existing-block edits without changing the assignment', async () => {
+    vi.mocked(listAssignmentItems).mockResolvedValue({
+      ok: true,
+      value: [item],
+    });
+    const view = renderApp('/app/classes/class-a/assignments/assignment-a');
+    const block = (await screen.findAllByRole('listitem'))[0]!;
+    fireEvent.click(
+      within(block).getByRole('button', { name: 'Edit block 1' }),
+    );
+    fireEvent.change(screen.getByLabelText('Problems'), {
+      target: { value: '7' },
+    });
+    expect(screen.getByText('Unsaved changes')).toBeVisible();
+    expect(screen.getByText('1 block · 5 problems total')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel edit' }));
+    expect(
+      screen.getByRole('heading', { name: 'New practice block' }),
+    ).toBeVisible();
+    expect(screen.getByLabelText('Problems')).toHaveValue(5);
+    expect(screen.getByText('1 block · 5 problems total')).toBeVisible();
+    expect(updateAssignmentItem).not.toHaveBeenCalled();
+    expect(screen.getByText('5 problems')).toBeVisible();
+    view.unmount();
   });
 
   it('reorders and removes draft practice blocks through the builder', async () => {
