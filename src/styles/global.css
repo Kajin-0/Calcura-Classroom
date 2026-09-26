@@ -711,6 +711,100 @@ h1 {
 .assignment-student-status {
   color: var(--color-ink);
 }
+.assignment-analytics-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 15px 22px;
+  margin: 18px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--color-border);
+}
+.assignment-analytics-summary > div {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+}
+.assignment-analytics-summary dt {
+  color: var(--color-muted);
+  font-size: 0.83rem;
+}
+.assignment-analytics-summary dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+.assignment-analytics-definition {
+  max-width: 740px;
+  margin: 14px 0 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+.assignment-analytics-subsection {
+  margin-top: 27px;
+}
+.assignment-analytics-subsection h3 {
+  margin: 0 0 11px;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+.assignment-analytics-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+.assignment-analytics-table-scroll:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+.assignment-analytics-table {
+  width: 100%;
+  min-width: 690px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+.assignment-analytics-table th,
+.assignment-analytics-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+.assignment-analytics-table thead th {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.assignment-analytics-table tbody th {
+  min-width: 155px;
+  font-weight: 560;
+}
+.assignment-analytics-table small {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+.assignment-position-breakdown {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+.assignment-position-breakdown details > summary {
+  min-height: 44px;
+  padding: 11px 2px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 560;
+}
+.assignment-position-breakdown details > .muted-copy {
+  margin: 7px 0 0;
+  font-size: 0.82rem;
+}
 .assignment-status {
   text-transform: capitalize;
 }
@@ -969,6 +1063,13 @@ h1 {
   .assignment-student-progress time,
   .assignment-student-progress li > .muted-copy {
     grid-column: 1 / -1;
+  }
+  .assignment-analytics-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 13px 15px;
+  }
+  .assignment-analytics-table {
+    min-width: 660px;
   }
   .lifecycle-actions {
     align-items: flex-start;

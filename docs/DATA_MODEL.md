@@ -1,6 +1,6 @@
 # Data model
 
-The Phase 1, 3, and 5 migrations implement and locally certify the workspace, classroom, assignment-intent, and terminal assignment-result entities described below. The hosted Supabase project remains unbaselined and has not received these migrations.
+The Phase 1, 3, 5, and 6 migrations implement and locally certify the workspace, classroom, assignment-intent, terminal assignment-result, and aggregate analytics API described below. Phase 6 adds no table, persisted aggregate, or telemetry. The hosted Supabase project remains unbaselined and has not received these migrations.
 
 ## Implemented entities
 
@@ -13,6 +13,10 @@ The Phase 1, 3, and 5 migrations implement and locally certify the workspace, cl
 | `assignments`                | `id`, `class_id`, nullable creator provenance `created_by`, trimmed `title` (1–160), optional `due_at`, `status` (`draft`/`published`/`archived`), `published_at`, timestamps. Class deletion cascades; creator deletion nulls provenance. Drafts have no publication timestamp; published and archived assignments retain the first publication timestamp.                                                                 |
 | `assignment_items`           | `id`, `assignment_id`, nonnegative `position`, `activity_contract_version` (currently exactly 1), `activity_key` (the exact six V1 keys), `problem_count` (1–20), timestamps. `(assignment_id, position)` is unique and deferrable so the atomic reorder RPC can safely swap positions. Assignment deletion cascades blocks.                                                                                                |
 | `assignment_problem_results` | One client-reported terminal result per `(assignment_item_id, student_user_id, problem_ordinal)`, with a per-student client idempotency key, terminal outcome, bounded performance counters, taxonomy snapshot, schema version, and server timestamp. Item/user FKs cascade; `correct` and `surrendered` count as complete, while `abandoned` is never an assignment result. No generated math or student answer is stored. |
+
+`get_assignment_analytics(assignment_id)` returns server-computed JSON aggregates only to an authenticated owner/admin/educator for the assignment's active workspace. It includes active enrollment and assignment-item denominators; terminal result counts and average client-reported attempts/time; correct and surrendered outcome counts; practice-block and assignment-position summaries; and one compact progress/performance row per active enrollee. It reads the existing result table and assignment intent, including a minimal email from `auth.users` only after authorization. It does not return raw result rows, taxonomy internals, or generated expressions.
+
+Metric definitions are fixed: `started` means at least one terminal result is recorded; `completed` means every assigned slot has one terminal result. Completion rate is completed active students / active enrollees (null for no enrollees). Completed problem slots are the unique `correct` plus `surrendered` results. Accuracy is correct / terminal results (null before any terminal result); surrender rate is surrendered terminal results / terminal results (also null with no results). Average attempts and seconds are arithmetic means over terminal result rows only. Empty slots and unobserved abandoned work are not treated as incorrect. Outcome, attempt, and time values are reported by Calcura, not cryptographically verified academic truth. Position comparisons are assignment-slot positions, not shared mathematical expressions; students may receive different generated problems at the same position.
 
 ## Assignment intent contract
 

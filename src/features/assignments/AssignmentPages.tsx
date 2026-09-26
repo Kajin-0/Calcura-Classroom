@@ -11,7 +11,7 @@ import {
   archiveAssignment,
   discardAssignment,
   getAssignmentById,
-  getAssignmentStudentProgress,
+  getAssignmentAnalytics,
   listAssignmentItems,
   publishAssignment,
   reactivateAssignment,
@@ -20,8 +20,9 @@ import {
   updateAssignmentItem,
   updateAssignmentMetadata,
   type AssignmentItemSummary,
-  type AssignmentStudentProgress,
+  type AssignmentStudentAnalytics,
   type AssignmentStatus,
+  type AssignmentAnalytics,
   type AssignmentSummary,
 } from './assignmentService';
 import { formatDueAt, toDateTimeLocal } from './assignmentFormatters';
@@ -161,17 +162,109 @@ function PracticeBlock({
   );
 }
 
-function AssignmentStudentProgressSection({
+function formatAnalyticsPercent(value: number | null) {
+  return value === null
+    ? '—'
+    : `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value * 100)}%`;
+}
+
+function formatAnalyticsAverage(value: number | null) {
+  return value === null
+    ? '—'
+    : new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(
+        value,
+      );
+}
+
+function formatAnalyticsTime(value: number | null) {
+  return value === null ? '—' : `${Math.round(value)} s`;
+}
+
+function statusLabel(status: AssignmentStudentAnalytics['status']) {
+  return status === 'completed'
+    ? 'Completed'
+    : status === 'in_progress'
+      ? 'In progress'
+      : 'Not started';
+}
+
+function AnalyticsSummary({ analytics }: { analytics: AssignmentAnalytics }) {
+  const { summary } = analytics;
+  const completed = `${summary.problemsCompleted} / ${summary.totalAssignedProblemSlots}`;
+  const accuracy =
+    summary.accuracy === null
+      ? '—'
+      : `${formatAnalyticsPercent(summary.accuracy)} (${summary.problemsCorrect}/${summary.problemsCompleted})`;
+
+  return (
+    <>
+      <dl className="assignment-analytics-summary">
+        <div>
+          <dt>Students enrolled</dt>
+          <dd>{summary.studentsEnrolled}</dd>
+        </div>
+        <div>
+          <dt>Started</dt>
+          <dd>
+            {summary.studentsStarted} / {summary.studentsEnrolled}
+          </dd>
+        </div>
+        <div>
+          <dt>Completed</dt>
+          <dd>
+            {summary.studentsCompleted} / {summary.studentsEnrolled}
+            {summary.completionRate === null
+              ? ''
+              : ` · ${formatAnalyticsPercent(summary.completionRate)}`}
+          </dd>
+        </div>
+        <div>
+          <dt>Problem slots completed</dt>
+          <dd>{completed}</dd>
+        </div>
+        <div>
+          <dt>Accuracy</dt>
+          <dd>{accuracy}</dd>
+        </div>
+        <div>
+          <dt>Avg attempts</dt>
+          <dd>{formatAnalyticsAverage(summary.averageAttempts)}</dd>
+        </div>
+        <div>
+          <dt>Avg time</dt>
+          <dd>{formatAnalyticsTime(summary.averageTimeSeconds)}</dd>
+        </div>
+        <div>
+          <dt>Surrenders</dt>
+          <dd>
+            {summary.surrenders}
+            {summary.surrenderRate === null
+              ? ''
+              : ` · ${formatAnalyticsPercent(summary.surrenderRate)}`}
+          </dd>
+        </div>
+      </dl>
+      <p className="muted-copy assignment-analytics-definition">
+        Started means a terminal result is recorded; unfinished or abandoned
+        work is not tracked. Accuracy uses completed results only. Surrendered
+        slots count as complete, not correct. Attempts and time are reported by
+        Calcura.
+      </p>
+    </>
+  );
+}
+
+function AssignmentAnalyticsSection({
   assignmentId,
 }: {
   assignmentId: string;
 }) {
-  const [rows, setRows] = useState<AssignmentStudentProgress[]>([]);
+  const [analytics, setAnalytics] = useState<AssignmentAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   const load = useCallback(
-    () => getAssignmentStudentProgress(assignmentId),
+    () => getAssignmentAnalytics(assignmentId),
     [assignmentId],
   );
 
@@ -179,7 +272,7 @@ function AssignmentStudentProgressSection({
     setLoading(true);
     setError(false);
     const result = await load();
-    if (result.ok) setRows(result.value);
+    if (result.ok) setAnalytics(result.value);
     else setError(true);
     setLoading(false);
   }, [load]);
@@ -188,7 +281,7 @@ function AssignmentStudentProgressSection({
     let current = true;
     void load().then((result) => {
       if (!current) return;
-      if (result.ok) setRows(result.value);
+      if (result.ok) setAnalytics(result.value);
       else setError(true);
       setLoading(false);
     });
@@ -197,23 +290,17 @@ function AssignmentStudentProgressSection({
     };
   }, [load]);
 
-  const statusLabel = (status: AssignmentStudentProgress['status']) =>
-    status === 'completed'
-      ? 'Completed'
-      : status === 'in_progress'
-        ? 'In progress'
-        : 'Not started';
-
   return (
     <section
-      className="assignment-content-section"
-      aria-labelledby="student-progress-title"
+      className="assignment-content-section assignment-analytics-section"
+      aria-labelledby="assignment-analytics-title"
     >
       <div className="assignment-form-heading">
         <div>
-          <h2 id="student-progress-title">Student progress</h2>
+          <h2 id="assignment-analytics-title">Assignment analytics</h2>
           <p className="muted-copy">
-            Completion is based on terminal results for assigned problem slots.
+            Completion and performance from terminal results for assigned
+            problem slots.
           </p>
         </div>
         <button
@@ -227,12 +314,12 @@ function AssignmentStudentProgressSection({
       </div>
       {loading ? (
         <p className="list-status" role="status">
-          Loading student progress…
+          Loading assignment analytics…
         </p>
       ) : null}
       {error ? (
         <div className="inline-state" role="alert">
-          <p>Student progress is unavailable right now.</p>
+          <p>Assignment analytics are unavailable right now.</p>
           <button
             className="text-button"
             type="button"
@@ -242,44 +329,209 @@ function AssignmentStudentProgressSection({
           </button>
         </div>
       ) : null}
-      {!loading && !error && rows.length === 0 ? (
-        <p className="section-empty">
-          No active students are enrolled in this class yet.
-        </p>
-      ) : null}
-      {!loading && !error && rows.length > 0 ? (
+      {!loading && !error && analytics ? (
         <>
-          {!rows.some((row) => row.completedProblemCount > 0) ? (
-            <p className="muted-copy">No submitted results yet.</p>
+          <AnalyticsSummary analytics={analytics} />
+          {analytics.summary.studentsEnrolled === 0 ? (
+            <p className="section-empty">
+              No active students are enrolled in this class yet.
+            </p>
           ) : null}
-          <ul
-            className="assignment-student-progress"
-            aria-label="Enrolled student progress"
-          >
-            {rows.map((row) => (
-              <li key={row.studentUserId}>
-                <span className="assignment-student-identity">
-                  {row.email || 'Student'}
-                </span>
-                <span className="assignment-student-count">
-                  {row.completedProblemCount} / {row.totalProblemCount}
-                </span>
-                <span className="assignment-student-status">
-                  {statusLabel(row.status)}
-                </span>
-                {row.lastActivityAt ? (
-                  <time dateTime={row.lastActivityAt} className="muted-copy">
-                    {new Intl.DateTimeFormat(undefined, {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    }).format(new Date(row.lastActivityAt))}
-                  </time>
-                ) : (
-                  <span className="muted-copy">No activity</span>
-                )}
-              </li>
-            ))}
-          </ul>
+          {analytics.summary.studentsEnrolled > 0 &&
+          analytics.summary.problemsCompleted === 0 ? (
+            <p className="section-empty">No completed problems yet.</p>
+          ) : null}
+          {analytics.activities.length > 0 ? (
+            <section
+              className="assignment-analytics-subsection"
+              aria-labelledby="assignment-activity-analytics-title"
+            >
+              <h3 id="assignment-activity-analytics-title">Practice blocks</h3>
+              <div
+                className="assignment-analytics-table-scroll"
+                role="region"
+                aria-label="Practice block analytics"
+                tabIndex={0}
+              >
+                <table className="assignment-analytics-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Practice block</th>
+                      <th scope="col">Completed slots</th>
+                      <th scope="col">Accuracy</th>
+                      <th scope="col">Avg attempts</th>
+                      <th scope="col">Avg time</th>
+                      <th scope="col">Surrenders</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analytics.activities.map((activity) => (
+                      <tr key={activity.assignmentItemId}>
+                        <th scope="row">
+                          <span>{activity.activityLabel}</span>
+                          <small>
+                            {activity.problemCount} assigned problems
+                          </small>
+                        </th>
+                        <td>
+                          {activity.problemsCompleted} /{' '}
+                          {activity.assignedProblemSlots}
+                        </td>
+                        <td>
+                          {activity.accuracy === null
+                            ? '—'
+                            : `${formatAnalyticsPercent(activity.accuracy)} (${activity.problemsCorrect}/${activity.problemsCompleted})`}
+                        </td>
+                        <td>
+                          {formatAnalyticsAverage(activity.averageAttempts)}
+                        </td>
+                        <td>
+                          {formatAnalyticsTime(activity.averageTimeSeconds)}
+                        </td>
+                        <td>
+                          {activity.surrenders}
+                          {activity.surrenderRate === null
+                            ? ''
+                            : ` · ${formatAnalyticsPercent(activity.surrenderRate)}`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="assignment-position-breakdown">
+                {analytics.activities.map((activity) => (
+                  <details key={activity.assignmentItemId}>
+                    <summary>
+                      {activity.activityLabel}: performance by assignment
+                      position
+                    </summary>
+                    <div
+                      className="assignment-analytics-table-scroll"
+                      role="region"
+                      aria-label={`${activity.activityLabel} position analytics`}
+                      tabIndex={0}
+                    >
+                      <table className="assignment-analytics-table">
+                        <thead>
+                          <tr>
+                            <th scope="col">Assignment position</th>
+                            <th scope="col">Completed</th>
+                            <th scope="col">Accuracy</th>
+                            <th scope="col">Avg attempts</th>
+                            <th scope="col">Avg time</th>
+                            <th scope="col">Surrenders</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {activity.problemPositions.map((position) => (
+                            <tr key={position.problemOrdinal}>
+                              <th scope="row">
+                                Problem {position.problemOrdinal}
+                              </th>
+                              <td>
+                                {position.problemsCompleted} /{' '}
+                                {analytics.summary.studentsEnrolled}
+                              </td>
+                              <td>
+                                {position.accuracy === null
+                                  ? '—'
+                                  : `${formatAnalyticsPercent(position.accuracy)} (${position.problemsCorrect}/${position.problemsCompleted})`}
+                              </td>
+                              <td>
+                                {formatAnalyticsAverage(
+                                  position.averageAttempts,
+                                )}
+                              </td>
+                              <td>
+                                {formatAnalyticsTime(
+                                  position.averageTimeSeconds,
+                                )}
+                              </td>
+                              <td>{position.surrenders}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="muted-copy">
+                      Assignment position is not a shared generated problem;
+                      Calcura may give students different expressions at the
+                      same position.
+                    </p>
+                  </details>
+                ))}
+              </div>
+            </section>
+          ) : null}
+          {analytics.students.length > 0 ? (
+            <section
+              className="assignment-analytics-subsection"
+              aria-labelledby="assignment-student-analytics-title"
+            >
+              <h3 id="assignment-student-analytics-title">Students</h3>
+              <div
+                className="assignment-analytics-table-scroll"
+                role="region"
+                aria-label="Enrolled student analytics"
+                tabIndex={0}
+              >
+                <table className="assignment-analytics-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Student</th>
+                      <th scope="col">Progress</th>
+                      <th scope="col">Accuracy</th>
+                      <th scope="col">Avg attempts</th>
+                      <th scope="col">Avg time</th>
+                      <th scope="col">Surrenders</th>
+                      <th scope="col">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analytics.students.map((student) => (
+                      <tr key={student.studentUserId}>
+                        <th scope="row">{student.email || 'Student'}</th>
+                        <td>
+                          {student.completedProblemCount} /{' '}
+                          {student.totalProblemCount}
+                          {student.lastActivityAt ? (
+                            <small>
+                              Last activity{' '}
+                              <time dateTime={student.lastActivityAt}>
+                                {new Intl.DateTimeFormat(undefined, {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short',
+                                }).format(new Date(student.lastActivityAt))}
+                              </time>
+                            </small>
+                          ) : null}
+                        </td>
+                        <td>
+                          {student.accuracy === null
+                            ? '—'
+                            : `${formatAnalyticsPercent(student.accuracy)} (${student.problemsCorrect}/${student.completedProblemCount})`}
+                        </td>
+                        <td>
+                          {formatAnalyticsAverage(student.averageAttempts)}
+                        </td>
+                        <td>
+                          {formatAnalyticsTime(student.averageTimeSeconds)}
+                        </td>
+                        <td>
+                          {student.surrenders}
+                          {student.surrenderRate === null
+                            ? ''
+                            : ` · ${formatAnalyticsPercent(student.surrenderRate)}`}
+                        </td>
+                        <td>{statusLabel(student.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
         </>
       ) : null}
     </section>
@@ -671,7 +923,7 @@ function AssignmentBuilder({
       </section>
 
       {assignment.status !== 'draft' ? (
-        <AssignmentStudentProgressSection assignmentId={assignment.id} />
+        <AssignmentAnalyticsSection assignmentId={assignment.id} />
       ) : null}
 
       <section

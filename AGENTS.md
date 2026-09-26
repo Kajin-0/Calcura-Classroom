@@ -36,6 +36,8 @@ This repository is the teacher and institutional control plane. Read `README.md`
 - Workspace roles are `owner`, `admin`, and `educator`. Students are class enrollees, not administrative workspace members.
 - `assignment_problem_results` is one client-reported terminal result per student/assignment-item/problem ordinal. Only `correct` and `surrendered` count; abandoned attempts remain personal Calcura history only. The authenticated-only recording RPC derives `student_user_id` from `auth.uid()`, validates active enrollment and assignment/class/workspace lifecycle, and acknowledges duplicate slots without overwriting the first result.
 - Assignment results contain no generated mathematics. Performance and taxonomy columns are browser-reported context, not cryptographically verified academic truth. Students may select only their own rows; teacher email/progress is exposed only through the independently membership-authorized progress RPC.
+- `get_assignment_analytics` is a teacher-only, SECURITY DEFINER aggregate RPC over existing terminal result rows; it must validate active workspace owner/admin/educator membership internally, expose only active enrollees for a published/archived assignment, and return no raw generated math or unrelated auth data. Analytics definitions are terminal-result based: correct+surrendered complete slots, only correct contributes to accuracy, and a missing result is not a wrong answer.
+- Phase 6 adds no student telemetry or result-table fields. “Started” means at least one terminal result exists (unsubmitted and abandoned work cannot be observed); attempts/time/outcome remain client-reported measurements. Keep student and cross-workspace access denied.
 
 ## Validation
 

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
+  getAssignmentActivity,
   isAssignmentActivityKey,
   type AssignmentActivityKey,
 } from '../../contracts/assignmentActivities';
@@ -50,10 +51,367 @@ export interface AssignmentStudentProgress {
   lastActivityAt: string | null;
 }
 
+export interface AssignmentAnalyticsSummary {
+  studentsEnrolled: number;
+  studentsStarted: number;
+  studentsCompleted: number;
+  completionRate: number | null;
+  totalAssignedProblemSlots: number;
+  problemsCompleted: number;
+  problemsCorrect: number;
+  accuracy: number | null;
+  averageAttempts: number | null;
+  averageTimeSeconds: number | null;
+  surrenders: number;
+  surrenderRate: number | null;
+}
+
+export interface AssignmentProblemPositionAnalytics {
+  problemOrdinal: number;
+  problemsCompleted: number;
+  problemsCorrect: number;
+  accuracy: number | null;
+  averageAttempts: number | null;
+  averageTimeSeconds: number | null;
+  surrenders: number;
+}
+
+export interface AssignmentActivityAnalytics {
+  assignmentItemId: string;
+  position: number;
+  activityContractVersion: 1;
+  activityKey: AssignmentActivityKey;
+  activityLabel: string;
+  problemCount: number;
+  assignedProblemSlots: number;
+  problemsCompleted: number;
+  problemsCorrect: number;
+  accuracy: number | null;
+  averageAttempts: number | null;
+  averageTimeSeconds: number | null;
+  surrenders: number;
+  surrenderRate: number | null;
+  problemPositions: AssignmentProblemPositionAnalytics[];
+}
+
+export interface AssignmentStudentAnalytics extends AssignmentStudentProgress {
+  problemsCorrect: number;
+  accuracy: number | null;
+  averageAttempts: number | null;
+  averageTimeSeconds: number | null;
+  surrenders: number;
+  surrenderRate: number | null;
+}
+
+export interface AssignmentAnalytics {
+  summary: AssignmentAnalyticsSummary;
+  activities: AssignmentActivityAnalytics[];
+  students: AssignmentStudentAnalytics[];
+}
+
 const assignmentColumns =
   'id, class_id, title, due_at, status, published_at, created_at, updated_at';
 const itemColumns =
   'id, assignment_id, position, activity_contract_version, activity_key, problem_count, created_at, updated_at';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const isCount = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0;
+const isNullableMetric = (value: unknown): value is number | null =>
+  value === null ||
+  (typeof value === 'number' && Number.isFinite(value) && value >= 0);
+const matchesRatio = (
+  value: unknown,
+  numerator: number,
+  denominator: number,
+): value is number | null =>
+  denominator === 0
+    ? value === null
+    : typeof value === 'number' &&
+      Number.isFinite(value) &&
+      value >= 0 &&
+      value <= 1 &&
+      Math.abs(value - numerator / denominator) < 1e-9;
+
+function parseAnalyticsPosition(
+  value: unknown,
+  ordinal: number,
+  enrolledCount: number,
+): AssignmentProblemPositionAnalytics | null {
+  if (!isRecord(value)) return null;
+  const completed = value.problems_completed;
+  const correct = value.problems_correct;
+  const surrenders = value.surrenders;
+  if (
+    value.problem_ordinal !== ordinal ||
+    !isCount(completed) ||
+    completed > enrolledCount ||
+    !isCount(correct) ||
+    !isCount(surrenders) ||
+    correct + surrenders !== completed ||
+    !matchesRatio(value.accuracy, correct, completed) ||
+    !isNullableMetric(value.average_attempts) ||
+    !isNullableMetric(value.average_time_seconds) ||
+    (completed === 0 &&
+      (value.average_attempts !== null ||
+        value.average_time_seconds !== null)) ||
+    (completed > 0 &&
+      (value.average_attempts === null || value.average_time_seconds === null))
+  )
+    return null;
+  return {
+    problemOrdinal: ordinal,
+    problemsCompleted: completed,
+    problemsCorrect: correct,
+    accuracy: value.accuracy,
+    averageAttempts: value.average_attempts,
+    averageTimeSeconds: value.average_time_seconds,
+    surrenders,
+  };
+}
+
+export function parseAssignmentAnalytics(
+  value: unknown,
+): AssignmentAnalytics | null {
+  if (!isRecord(value) || value.schema_version !== 1) return null;
+  const summary = value.summary;
+  if (!isRecord(summary)) return null;
+
+  const studentsEnrolled = summary.students_enrolled;
+  const studentsStarted = summary.students_started;
+  const studentsCompleted = summary.students_completed;
+  const totalAssignedProblemSlots = summary.total_assigned_problem_slots;
+  const problemsCompleted = summary.problems_completed;
+  const problemsCorrect = summary.problems_correct;
+  const surrenders = summary.surrenders;
+  if (
+    !isCount(studentsEnrolled) ||
+    !isCount(studentsStarted) ||
+    !isCount(studentsCompleted) ||
+    studentsStarted > studentsEnrolled ||
+    studentsCompleted > studentsStarted ||
+    !isCount(totalAssignedProblemSlots) ||
+    !isCount(problemsCompleted) ||
+    problemsCompleted > totalAssignedProblemSlots ||
+    !isCount(problemsCorrect) ||
+    !isCount(surrenders) ||
+    problemsCorrect + surrenders !== problemsCompleted ||
+    !matchesRatio(
+      summary.completion_rate,
+      studentsCompleted,
+      studentsEnrolled,
+    ) ||
+    !matchesRatio(summary.accuracy, problemsCorrect, problemsCompleted) ||
+    !matchesRatio(summary.surrender_rate, surrenders, problemsCompleted) ||
+    !isNullableMetric(summary.average_attempts) ||
+    !isNullableMetric(summary.average_time_seconds) ||
+    (problemsCompleted === 0 &&
+      (summary.average_attempts !== null ||
+        summary.average_time_seconds !== null)) ||
+    (problemsCompleted > 0 &&
+      (summary.average_attempts === null ||
+        summary.average_time_seconds === null)) ||
+    !Array.isArray(value.activities) ||
+    !Array.isArray(value.students)
+  )
+    return null;
+
+  const students: AssignmentStudentAnalytics[] = [];
+  const studentIds = new Set<string>();
+  for (const raw of value.students) {
+    if (!isRecord(raw)) return null;
+    const completed = raw.completed_problem_count;
+    const total = raw.total_problem_count;
+    const correct = raw.problems_correct;
+    const surrendered = raw.surrenders;
+    if (
+      !isUuid(raw.student_user_id) ||
+      studentIds.has(raw.student_user_id) ||
+      !(typeof raw.student_email === 'string' || raw.student_email === null) ||
+      !isCount(completed) ||
+      !isCount(total) ||
+      total > totalAssignedProblemSlots ||
+      completed > total ||
+      !isCount(correct) ||
+      !isCount(surrendered) ||
+      correct + surrendered !== completed ||
+      !matchesRatio(raw.accuracy, correct, completed) ||
+      !matchesRatio(raw.surrender_rate, surrendered, completed) ||
+      !isNullableMetric(raw.average_attempts) ||
+      !isNullableMetric(raw.average_time_seconds) ||
+      (completed === 0 &&
+        (raw.average_attempts !== null || raw.average_time_seconds !== null)) ||
+      (completed > 0 &&
+        (raw.average_attempts === null || raw.average_time_seconds === null)) ||
+      !isProgressStatus(raw.progress_status) ||
+      !(
+        typeof raw.last_activity_at === 'string' ||
+        raw.last_activity_at === null
+      ) ||
+      (typeof raw.last_activity_at === 'string' &&
+        !Number.isFinite(Date.parse(raw.last_activity_at)))
+    )
+      return null;
+    const expectedStatus =
+      completed === 0
+        ? 'not_started'
+        : total > 0 && completed >= total
+          ? 'completed'
+          : 'in_progress';
+    if (raw.progress_status !== expectedStatus) return null;
+    studentIds.add(raw.student_user_id);
+    students.push({
+      studentUserId: raw.student_user_id,
+      email: raw.student_email,
+      completedProblemCount: completed,
+      totalProblemCount: total,
+      status: raw.progress_status,
+      lastActivityAt: raw.last_activity_at,
+      problemsCorrect: correct,
+      accuracy: raw.accuracy,
+      averageAttempts: raw.average_attempts,
+      averageTimeSeconds: raw.average_time_seconds,
+      surrenders: surrendered,
+      surrenderRate: raw.surrender_rate,
+    });
+  }
+  if (students.length !== studentsEnrolled) return null;
+
+  const activities: AssignmentActivityAnalytics[] = [];
+  const activityIds = new Set<string>();
+  let previousPosition = -1;
+  for (const raw of value.activities) {
+    if (!isRecord(raw)) return null;
+    const itemId = raw.assignment_item_id;
+    const activityKey = raw.activity_key;
+    const problemCount = raw.problem_count;
+    const completed = raw.problems_completed;
+    const correct = raw.problems_correct;
+    const surrendered = raw.surrenders;
+    const position = raw.position;
+    const assignedSlots = raw.assigned_problem_slots;
+    if (
+      !isUuid(itemId) ||
+      activityIds.has(itemId) ||
+      !Number.isInteger(position) ||
+      (position as number) < 0 ||
+      (position as number) <= previousPosition ||
+      raw.activity_contract_version !== 1 ||
+      typeof activityKey !== 'string' ||
+      !isAssignmentActivityKey(activityKey) ||
+      !isCount(problemCount) ||
+      problemCount < 1 ||
+      problemCount > 20 ||
+      !isCount(assignedSlots) ||
+      assignedSlots !== problemCount * studentsEnrolled ||
+      !isCount(completed) ||
+      completed > assignedSlots ||
+      !isCount(correct) ||
+      !isCount(surrendered) ||
+      correct + surrendered !== completed ||
+      !matchesRatio(raw.accuracy, correct, completed) ||
+      !matchesRatio(raw.surrender_rate, surrendered, completed) ||
+      !isNullableMetric(raw.average_attempts) ||
+      !isNullableMetric(raw.average_time_seconds) ||
+      (completed === 0 &&
+        (raw.average_attempts !== null || raw.average_time_seconds !== null)) ||
+      (completed > 0 &&
+        (raw.average_attempts === null || raw.average_time_seconds === null)) ||
+      !Array.isArray(raw.problem_positions) ||
+      raw.problem_positions.length !== problemCount
+    )
+      return null;
+    const activity = getAssignmentActivity(activityKey);
+    if (!activity) return null;
+    const problemPositions: AssignmentProblemPositionAnalytics[] = [];
+    for (let index = 0; index < raw.problem_positions.length; index += 1) {
+      const parsed = parseAnalyticsPosition(
+        raw.problem_positions[index],
+        index + 1,
+        studentsEnrolled,
+      );
+      if (!parsed) return null;
+      problemPositions.push(parsed);
+    }
+    if (
+      problemPositions.reduce((sum, row) => sum + row.problemsCompleted, 0) !==
+        completed ||
+      problemPositions.reduce((sum, row) => sum + row.problemsCorrect, 0) !==
+        correct ||
+      problemPositions.reduce((sum, row) => sum + row.surrenders, 0) !==
+        surrendered
+    )
+      return null;
+    activityIds.add(itemId);
+    previousPosition = position as number;
+    activities.push({
+      assignmentItemId: itemId,
+      position: position as number,
+      activityContractVersion: 1,
+      activityKey,
+      activityLabel: activity.label,
+      problemCount,
+      assignedProblemSlots: assignedSlots,
+      problemsCompleted: completed,
+      problemsCorrect: correct,
+      accuracy: raw.accuracy,
+      averageAttempts: raw.average_attempts,
+      averageTimeSeconds: raw.average_time_seconds,
+      surrenders: surrendered,
+      surrenderRate: raw.surrender_rate,
+      problemPositions,
+    });
+  }
+
+  const totals = {
+    completed: students.reduce(
+      (sum, row) => sum + row.completedProblemCount,
+      0,
+    ),
+    correct: students.reduce((sum, row) => sum + row.problemsCorrect, 0),
+    surrenders: students.reduce((sum, row) => sum + row.surrenders, 0),
+    started: students.filter((row) => row.completedProblemCount > 0).length,
+    completedStudents: students.filter((row) => row.status === 'completed')
+      .length,
+  };
+  if (
+    totals.completed !== problemsCompleted ||
+    totals.correct !== problemsCorrect ||
+    totals.surrenders !== surrenders ||
+    totals.started !== studentsStarted ||
+    totals.completedStudents !== studentsCompleted ||
+    students.reduce((sum, row) => sum + row.totalProblemCount, 0) !==
+      totalAssignedProblemSlots ||
+    activities.reduce((sum, row) => sum + row.assignedProblemSlots, 0) !==
+      totalAssignedProblemSlots ||
+    activities.reduce((sum, row) => sum + row.problemsCompleted, 0) !==
+      problemsCompleted ||
+    activities.reduce((sum, row) => sum + row.problemsCorrect, 0) !==
+      problemsCorrect ||
+    activities.reduce((sum, row) => sum + row.surrenders, 0) !== surrenders
+  )
+    return null;
+
+  return {
+    summary: {
+      studentsEnrolled,
+      studentsStarted,
+      studentsCompleted,
+      completionRate: summary.completion_rate,
+      totalAssignedProblemSlots,
+      problemsCompleted,
+      problemsCorrect,
+      accuracy: summary.accuracy,
+      averageAttempts: summary.average_attempts,
+      averageTimeSeconds: summary.average_time_seconds,
+      surrenders,
+      surrenderRate: summary.surrender_rate,
+    },
+    activities,
+    students,
+  };
+}
 
 const resolveClient = (client: Client | null): ServiceResult<Client> =>
   client ? { ok: true, value: client } : failure('not_configured');
@@ -204,6 +562,26 @@ export async function getAssignmentStudentProgress(
       });
     }
     return { ok: true, value: rows };
+  } catch (error) {
+    return mapFailure(error);
+  }
+}
+
+export async function getAssignmentAnalytics(
+  assignmentId: string,
+  client: Client | null = getSupabaseClient(),
+): Promise<ServiceResult<AssignmentAnalytics>> {
+  const resolved = resolveClient(client);
+  if (!resolved.ok) return resolved;
+
+  try {
+    const { data, error } = await resolved.value.rpc(
+      'get_assignment_analytics',
+      { p_assignment_id: assignmentId },
+    );
+    if (error) return mapFailure(error);
+    const analytics = parseAssignmentAnalytics(data);
+    return analytics ? { ok: true, value: analytics } : failure('unexpected');
   } catch (error) {
     return mapFailure(error);
   }

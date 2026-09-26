@@ -370,6 +370,10 @@ export type Database = {
           total_problem_count: number;
         }[];
       };
+      get_assignment_analytics: {
+        Args: { p_assignment_id: string };
+        Returns: Json;
+      };
       get_class_join_code: { Args: { p_class_id: string }; Returns: string };
       join_class_by_code: {
         Args: { p_code: string };

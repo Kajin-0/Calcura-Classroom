@@ -7,6 +7,7 @@ import {
   createAssignment,
   discardAssignment,
   getAssignmentById,
+  getAssignmentAnalytics,
   getAssignmentStudentProgress,
   listAssignmentItems,
   listClassAssignments,
@@ -402,6 +403,139 @@ describe('assignment service boundaries', () => {
     });
     await expect(
       getAssignmentStudentProgress('assignment-a', malformed),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'unexpected' },
+    });
+  });
+
+  it('parses only consistent assignment analytics from one typed RPC', async () => {
+    const itemId = '22222222-2222-4222-8222-222222222222';
+    const studentId = '11111111-1111-4111-8111-111111111111';
+    const payload = {
+      schema_version: 1,
+      summary: {
+        students_enrolled: 1,
+        students_started: 1,
+        students_completed: 1,
+        completion_rate: 1,
+        total_assigned_problem_slots: 1,
+        problems_completed: 1,
+        problems_correct: 1,
+        accuracy: 1,
+        average_attempts: 2.5,
+        average_time_seconds: 40,
+        surrenders: 0,
+        surrender_rate: 0,
+      },
+      activities: [
+        {
+          assignment_item_id: itemId,
+          position: 0,
+          activity_contract_version: 1,
+          activity_key: 'integration.u_substitution.v1',
+          problem_count: 1,
+          assigned_problem_slots: 1,
+          problems_completed: 1,
+          problems_correct: 1,
+          accuracy: 1,
+          average_attempts: 2.5,
+          average_time_seconds: 40,
+          surrenders: 0,
+          surrender_rate: 0,
+          problem_positions: [
+            {
+              problem_ordinal: 1,
+              problems_completed: 1,
+              problems_correct: 1,
+              accuracy: 1,
+              average_attempts: 2.5,
+              average_time_seconds: 40,
+              surrenders: 0,
+            },
+          ],
+        },
+      ],
+      students: [
+        {
+          student_user_id: studentId,
+          student_email: 'student@example.test',
+          completed_problem_count: 1,
+          total_problem_count: 1,
+          progress_status: 'completed',
+          problems_correct: 1,
+          accuracy: 1,
+          average_attempts: 2.5,
+          average_time_seconds: 40,
+          surrenders: 0,
+          surrender_rate: 0,
+          last_activity_at: '2026-09-24T12:00:00Z',
+        },
+      ],
+    };
+    const client = clientMock({
+      rpc: vi.fn().mockResolvedValue({ data: payload, error: null }),
+    });
+    await expect(
+      getAssignmentAnalytics('assignment-a', client),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: {
+        summary: {
+          studentsEnrolled: 1,
+          problemsCompleted: 1,
+          accuracy: 1,
+        },
+        activities: [
+          {
+            assignmentItemId: itemId,
+            activityLabel: 'U-substitution',
+            problemPositions: [{ problemOrdinal: 1, accuracy: 1 }],
+          },
+        ],
+        students: [
+          {
+            studentUserId: studentId,
+            status: 'completed',
+            averageAttempts: 2.5,
+          },
+        ],
+      },
+    });
+    expect(client.rpc).toHaveBeenCalledWith('get_assignment_analytics', {
+      p_assignment_id: 'assignment-a',
+    });
+
+    const malformedClient = clientMock({
+      rpc: vi.fn().mockResolvedValue({
+        data: {
+          ...payload,
+          summary: { ...payload.summary, accuracy: 0.5 },
+        },
+        error: null,
+      }),
+    });
+    await expect(
+      getAssignmentAnalytics('assignment-a', malformedClient),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'unexpected' },
+    });
+
+    const malformedTotals = clientMock({
+      rpc: vi.fn().mockResolvedValue({
+        data: {
+          ...payload,
+          students: payload.students.map((student) => ({
+            ...student,
+            total_problem_count: 2,
+          })),
+        },
+        error: null,
+      }),
+    });
+    await expect(
+      getAssignmentAnalytics('assignment-a', malformedTotals),
     ).resolves.toMatchObject({
       ok: false,
       error: { code: 'unexpected' },

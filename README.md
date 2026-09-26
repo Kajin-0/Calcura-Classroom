@@ -1,6 +1,6 @@
 # Calcura Classroom
 
-Calcura Classroom is the teacher and institutional control plane for Calcura. **Phases 0–5 are complete locally**: engineering foundation, workspace/class RLS, teacher class management, assignment authoring, student Calcura integration, and terminal assignment-result reporting. Teachers can publish versioned practice-family assignments and view each active enrollee's completed/total problem slots. Students solve through Calcura, which remains the only mathematics engine. These features require the shared Classroom schema; it has not been deployed to the hosted Supabase project, and the Calcura student feature gate remains disabled by default.
+Calcura Classroom is the teacher and institutional control plane for Calcura. **Phases 0–6 are complete locally**: engineering foundation, workspace/class RLS, teacher class management, assignment authoring, student Calcura integration, terminal assignment-result reporting, and basic teacher analytics. Teachers can publish versioned practice-family assignments and review completion, accuracy, attempts, time, surrenders, practice-block results, problem positions, and enrolled-student results. Students solve through Calcura, which remains the only mathematics engine. These features require the shared Classroom schema; it has not been deployed to the hosted Supabase project, and the Calcura student feature gate remains disabled by default.
 
 ## Repository responsibilities
 
@@ -8,7 +8,7 @@ Calcura Classroom is the teacher and institutional control plane for Calcura. **
 - `Kajin-0/Calcura-Classroom` owns teacher authentication UX, workspace and classroom administration, assignment intent, teacher analytics, future billing integration, migrations, and Edge Functions.
 - `Kajin-0/Calcura-Site` owns public marketing and pricing.
 
-Classroom and Calcura use the same Supabase project and Auth users. Calcura still owns mathematical generation, checking, grading, and generic personal `AttemptRecord` history. Classroom stores assignment intent plus one minimal terminal result per assigned problem slot. Correct and surrendered slots count as complete; abandoned attempts do not. Outcome, performance, and taxonomy fields are client-reported context, not cryptographically verified academic truth. The result RPC validates authenticated identity, active enrollment, item/assignment relationship, lifecycle state, ordinal bounds, and idempotency. Teacher identity is returned only by a narrowly authorized progress RPC; students cannot read classmates' results.
+Classroom and Calcura use the same Supabase project and Auth users. Calcura still owns mathematical generation, checking, grading, and generic personal `AttemptRecord` history. Classroom stores assignment intent plus one minimal terminal result per assigned problem slot. Correct and surrendered slots count as complete; abandoned attempts do not. Outcome, performance, and taxonomy fields are client-reported context, not cryptographically verified academic truth. The result RPC validates authenticated identity, active enrollment, item/assignment relationship, lifecycle state, ordinal bounds, and idempotency. Teacher identity and assignment aggregates are returned only by narrowly authorized RPCs; students cannot read classmates' results or teacher analytics.
 
 ## Local setup
 
@@ -63,6 +63,7 @@ The local migrations create the workspace/class foundation, assignment-intent mo
 npm run supabase:start
 npm run supabase:reset
 npm run test:db
+npm run test:assignment-analytics:local
 npm run types:db
 npm run supabase:stop
 ```
@@ -77,4 +78,4 @@ Every exposed Supabase table requires explicit grants and RLS. A publishable key
 
 ## Roadmap
 
-The planned order is recorded in [Roadmap](docs/ROADMAP.md). The next phase is **Phase 6 — Basic Analytics**. Rich learning events, step-level telemetry, analytics, billing, entitlements, Team, School, and University remain deferred.
+The planned order is recorded in [Roadmap](docs/ROADMAP.md). Phase 6 analytics are limited to server-aggregated assignment completion/performance derived from existing Phase-5 result rows. Rich learning events, step-level telemetry, recommendations, billing, entitlements, Team, School, and University remain deferred.

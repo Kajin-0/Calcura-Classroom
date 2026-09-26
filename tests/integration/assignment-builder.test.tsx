@@ -18,7 +18,7 @@ import {
   createAssignment,
   discardAssignment,
   getAssignmentById,
-  getAssignmentStudentProgress,
+  getAssignmentAnalytics,
   listAssignmentItems,
   listClassAssignments,
   publishAssignment,
@@ -35,6 +35,7 @@ import {
   setClassStatus,
 } from '../../src/features/classes/classService';
 import type {
+  AssignmentAnalytics,
   AssignmentItemSummary,
   AssignmentSummary,
 } from '../../src/features/assignments/assignmentService';
@@ -56,7 +57,7 @@ vi.mock('../../src/features/assignments/assignmentService', () => ({
   createAssignment: vi.fn(),
   discardAssignment: vi.fn(),
   getAssignmentById: vi.fn(),
-  getAssignmentStudentProgress: vi.fn(),
+  getAssignmentAnalytics: vi.fn(),
   listAssignmentItems: vi.fn(),
   listClassAssignments: vi.fn(),
   publishAssignment: vi.fn(),
@@ -110,6 +111,151 @@ const session = {
   user: { id: 'teacher-a', email: 'teacher@example.com' },
 } as Session;
 
+const emptyAnalytics: AssignmentAnalytics = {
+  summary: {
+    studentsEnrolled: 0,
+    studentsStarted: 0,
+    studentsCompleted: 0,
+    completionRate: null,
+    totalAssignedProblemSlots: 0,
+    problemsCompleted: 0,
+    problemsCorrect: 0,
+    accuracy: null,
+    averageAttempts: null,
+    averageTimeSeconds: null,
+    surrenders: 0,
+    surrenderRate: null,
+  },
+  activities: [],
+  students: [],
+};
+
+const assignmentAnalytics: AssignmentAnalytics = {
+  summary: {
+    studentsEnrolled: 3,
+    studentsStarted: 2,
+    studentsCompleted: 1,
+    completionRate: 1 / 3,
+    totalAssignedProblemSlots: 15,
+    problemsCompleted: 7,
+    problemsCorrect: 5,
+    accuracy: 5 / 7,
+    averageAttempts: 2,
+    averageTimeSeconds: 48,
+    surrenders: 2,
+    surrenderRate: 2 / 7,
+  },
+  activities: [
+    {
+      assignmentItemId: 'item-a',
+      position: 0,
+      activityContractVersion: 1,
+      activityKey: 'integration.u_substitution.v1',
+      activityLabel: 'U-substitution',
+      problemCount: 5,
+      assignedProblemSlots: 15,
+      problemsCompleted: 7,
+      problemsCorrect: 5,
+      accuracy: 5 / 7,
+      averageAttempts: 2,
+      averageTimeSeconds: 48,
+      surrenders: 2,
+      surrenderRate: 2 / 7,
+      problemPositions: [
+        {
+          problemOrdinal: 1,
+          problemsCompleted: 2,
+          problemsCorrect: 1,
+          accuracy: 0.5,
+          averageAttempts: 1.5,
+          averageTimeSeconds: 45,
+          surrenders: 1,
+        },
+        {
+          problemOrdinal: 2,
+          problemsCompleted: 2,
+          problemsCorrect: 2,
+          accuracy: 1,
+          averageAttempts: 2,
+          averageTimeSeconds: 50,
+          surrenders: 0,
+        },
+        {
+          problemOrdinal: 3,
+          problemsCompleted: 1,
+          problemsCorrect: 1,
+          accuracy: 1,
+          averageAttempts: 2,
+          averageTimeSeconds: 45,
+          surrenders: 0,
+        },
+        {
+          problemOrdinal: 4,
+          problemsCompleted: 1,
+          problemsCorrect: 0,
+          accuracy: 0,
+          averageAttempts: 3,
+          averageTimeSeconds: 60,
+          surrenders: 1,
+        },
+        {
+          problemOrdinal: 5,
+          problemsCompleted: 1,
+          problemsCorrect: 1,
+          accuracy: 1,
+          averageAttempts: 1,
+          averageTimeSeconds: 40,
+          surrenders: 0,
+        },
+      ],
+    },
+  ],
+  students: [
+    {
+      studentUserId: 'student-a',
+      email: 'student-a@example.test',
+      completedProblemCount: 0,
+      totalProblemCount: 5,
+      status: 'not_started',
+      lastActivityAt: null,
+      problemsCorrect: 0,
+      accuracy: null,
+      averageAttempts: null,
+      averageTimeSeconds: null,
+      surrenders: 0,
+      surrenderRate: null,
+    },
+    {
+      studentUserId: 'student-b',
+      email: 'student-b@example.test',
+      completedProblemCount: 2,
+      totalProblemCount: 5,
+      status: 'in_progress',
+      lastActivityAt: '2026-09-24T12:00:00Z',
+      problemsCorrect: 1,
+      accuracy: 0.5,
+      averageAttempts: 1.5,
+      averageTimeSeconds: 35,
+      surrenders: 1,
+      surrenderRate: 0.5,
+    },
+    {
+      studentUserId: 'student-c',
+      email: 'student-c@example.test',
+      completedProblemCount: 5,
+      totalProblemCount: 5,
+      status: 'completed',
+      lastActivityAt: '2026-09-24T12:30:00Z',
+      problemsCorrect: 4,
+      accuracy: 0.8,
+      averageAttempts: 2.2,
+      averageTimeSeconds: 55,
+      surrenders: 1,
+      surrenderRate: 0.2,
+    },
+  ],
+};
+
 function renderApp(path: string) {
   return render(
     <AuthSessionContext.Provider
@@ -148,9 +294,9 @@ describe('teacher assignment workflow', () => {
     vi.mocked(listClassAssignments).mockResolvedValue({ ok: true, value: [] });
     vi.mocked(createAssignment).mockResolvedValue({ ok: true, value: draft });
     vi.mocked(getAssignmentById).mockResolvedValue({ ok: true, value: draft });
-    vi.mocked(getAssignmentStudentProgress).mockResolvedValue({
+    vi.mocked(getAssignmentAnalytics).mockResolvedValue({
       ok: true,
-      value: [],
+      value: emptyAnalytics,
     });
     vi.mocked(listAssignmentItems).mockResolvedValue({ ok: true, value: [] });
     vi.mocked(addAssignmentItem).mockResolvedValue({ ok: true, value: item });
@@ -394,7 +540,7 @@ describe('teacher assignment workflow', () => {
     expect(await screen.findByText('Content locked')).toBeVisible();
   });
 
-  it('shows authorized enrolled-student progress on published assignments', async () => {
+  it('shows authorized aggregate, activity, position, and student analytics', async () => {
     vi.mocked(getAssignmentById).mockResolvedValueOnce({
       ok: true,
       value: {
@@ -407,38 +553,13 @@ describe('teacher assignment workflow', () => {
       ok: true,
       value: [item],
     });
-    vi.mocked(getAssignmentStudentProgress).mockResolvedValueOnce({
+    vi.mocked(getAssignmentAnalytics).mockResolvedValueOnce({
       ok: true,
-      value: [
-        {
-          studentUserId: 'student-a',
-          email: 'student-a@example.test',
-          completedProblemCount: 0,
-          totalProblemCount: 5,
-          status: 'not_started',
-          lastActivityAt: null,
-        },
-        {
-          studentUserId: 'student-b',
-          email: 'student-b@example.test',
-          completedProblemCount: 2,
-          totalProblemCount: 5,
-          status: 'in_progress',
-          lastActivityAt: '2026-09-24T12:00:00Z',
-        },
-        {
-          studentUserId: 'student-c',
-          email: 'student-c@example.test',
-          completedProblemCount: 5,
-          totalProblemCount: 5,
-          status: 'completed',
-          lastActivityAt: '2026-09-24T12:30:00Z',
-        },
-      ],
+      value: assignmentAnalytics,
     });
     renderApp('/app/classes/class-a/assignments/assignment-a');
     const section = await screen.findByRole('region', {
-      name: 'Student progress',
+      name: 'Assignment analytics',
     });
     expect(
       await within(section).findByText('student-a@example.test'),
@@ -447,7 +568,27 @@ describe('teacher assignment workflow', () => {
     expect(within(section).getByText('Not started')).toBeVisible();
     expect(within(section).getByText('2 / 5')).toBeVisible();
     expect(within(section).getByText('In progress')).toBeVisible();
-    expect(within(section).getByText('Completed')).toBeVisible();
+    expect(within(section).getAllByText('Completed')).toHaveLength(3);
+    expect(within(section).getByText('U-substitution')).toBeVisible();
+    expect(within(section).getAllByText('7 / 15')).toHaveLength(2);
+    expect(within(section).getAllByText('71.4% (5/7)')).toHaveLength(2);
+    expect(
+      within(section).getByText(
+        'U-substitution: performance by assignment position',
+      ),
+    ).toBeVisible();
+    fireEvent.click(
+      within(section).getByText(
+        'U-substitution: performance by assignment position',
+      ),
+    );
+    expect(within(section).getByText('Problem 1')).toBeVisible();
+    const positionTable = within(
+      within(section).getByRole('region', {
+        name: 'U-substitution position analytics',
+      }),
+    ).getByRole('table');
+    expect(within(positionTable).getAllByText('2 / 3')).toHaveLength(2);
   });
 
   it('shows a clean no-enrollment state', async () => {
@@ -459,13 +600,13 @@ describe('teacher assignment workflow', () => {
         published_at: '2026-09-24T12:00:00Z',
       },
     });
-    vi.mocked(getAssignmentStudentProgress).mockResolvedValueOnce({
+    vi.mocked(getAssignmentAnalytics).mockResolvedValueOnce({
       ok: true,
-      value: [],
+      value: emptyAnalytics,
     });
     renderApp('/app/classes/class-a/assignments/assignment-a');
     const section = await screen.findByRole('region', {
-      name: 'Student progress',
+      name: 'Assignment analytics',
     });
     expect(
       await within(section).findByText(
@@ -483,19 +624,19 @@ describe('teacher assignment workflow', () => {
         published_at: '2026-09-24T12:00:00Z',
       },
     });
-    vi.mocked(getAssignmentStudentProgress)
+    vi.mocked(getAssignmentAnalytics)
       .mockResolvedValueOnce({
         ok: false,
         error: { code: 'unexpected', message: 'safe' },
       })
-      .mockResolvedValueOnce({ ok: true, value: [] });
+      .mockResolvedValueOnce({ ok: true, value: emptyAnalytics });
     renderApp('/app/classes/class-a/assignments/assignment-a');
     const section = await screen.findByRole('region', {
-      name: 'Student progress',
+      name: 'Assignment analytics',
     });
     expect(
       await within(section).findByText(
-        'Student progress is unavailable right now.',
+        'Assignment analytics are unavailable right now.',
       ),
     ).toBeVisible();
     fireEvent.click(within(section).getByRole('button', { name: 'Retry' }));
