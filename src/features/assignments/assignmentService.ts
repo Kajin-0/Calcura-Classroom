@@ -821,3 +821,60 @@ export async function discardAssignment(
     return mapFailure(error);
   }
 }
+
+/** Returns whether any terminal student result protects this assignment. */
+export async function getAssignmentDeleteStatus(
+  assignmentId: string,
+  client: Client | null = getSupabaseClient(),
+): Promise<ServiceResult<boolean>> {
+  const resolved = resolveClient(client);
+  if (!resolved.ok) return resolved;
+  try {
+    const { data, error } = await resolved.value.rpc(
+      'get_assignment_delete_status',
+      { p_assignment_id: assignmentId },
+    );
+    if (error) return mapFailure(error);
+    return typeof data === 'boolean'
+      ? { ok: true, value: data }
+      : failure('unexpected');
+  } catch (error) {
+    return mapFailure(error);
+  }
+}
+
+/** Atomically creates a fresh draft and copies ordered item configuration. */
+export async function duplicateAssignment(
+  assignmentId: string,
+  client: Client | null = getSupabaseClient(),
+): Promise<ServiceResult<string>> {
+  const resolved = resolveClient(client);
+  if (!resolved.ok) return resolved;
+  try {
+    const { data, error } = await resolved.value.rpc('duplicate_assignment', {
+      p_assignment_id: assignmentId,
+    });
+    if (error) return mapFailure(error);
+    return isUuid(data) ? { ok: true, value: data } : failure('unexpected');
+  } catch (error) {
+    return mapFailure(error);
+  }
+}
+
+/** Deletes only assignments that still have no result history at commit time. */
+export async function deleteAssignment(
+  assignmentId: string,
+  client: Client | null = getSupabaseClient(),
+): Promise<ServiceResult<void>> {
+  const resolved = resolveClient(client);
+  if (!resolved.ok) return resolved;
+  try {
+    const { error } = await resolved.value.rpc('delete_assignment', {
+      p_assignment_id: assignmentId,
+    });
+    if (error) return mapFailure(error);
+    return { ok: true, value: undefined };
+  } catch (error) {
+    return mapFailure(error);
+  }
+}

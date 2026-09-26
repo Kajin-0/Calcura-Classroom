@@ -13,6 +13,7 @@ export type ClassroomErrorCode =
   | 'assignment_not_found'
   | 'invalid_assignment_transition'
   | 'assignment_requires_items'
+  | 'assignment_has_results'
   | 'only_drafts_can_be_discarded'
   | 'invalid_assignment_item_order'
   | 'classroom_inactive'
@@ -44,6 +45,8 @@ const userMessages: Record<ClassroomErrorCode, string> = {
     'This assignment can no longer make that change.',
   assignment_requires_items:
     'Add at least one practice block before publishing.',
+  assignment_has_results:
+    'This assignment has student results and cannot be deleted. Duplicate it to make changes.',
   only_drafts_can_be_discarded: 'Only draft assignments can be discarded.',
   invalid_assignment_item_order:
     'The practice block order changed. Reload and try again.',
@@ -73,6 +76,8 @@ export function mapClassroomError(error: unknown): ClassroomError {
     else if (providerMessage === 'not_authorized') code = 'not_authorized';
     else if (providerMessage === 'assignment_requires_items')
       code = 'assignment_requires_items';
+    else if (providerMessage === 'assignment_has_results')
+      code = 'assignment_has_results';
     else if (providerMessage === 'only_drafts_can_be_discarded')
       code = 'only_drafts_can_be_discarded';
     else if (providerMessage === 'invalid_assignment_item_order')

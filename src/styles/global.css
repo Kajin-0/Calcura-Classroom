@@ -580,7 +580,16 @@ h1 {
 .assignment-list li {
   border-bottom: 1px solid var(--color-border);
 }
+.assignment-list-entry {
+  padding: 4px 0 10px;
+}
+.assignment-list-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
 .assignment-row {
+  flex: 1 1 auto;
   min-height: 62px;
   display: flex;
   align-items: center;
@@ -605,6 +614,23 @@ h1 {
   color: var(--color-muted);
   font-size: 0.88rem;
   white-space: nowrap;
+}
+.assignment-row-actions,
+.assignment-row-confirmation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 0 10px 8px;
+  font-size: 0.88rem;
+}
+.assignment-row-confirmation {
+  padding-top: 4px;
+}
+.assignment-row-feedback {
+  margin: 2px 10px 8px;
+  color: var(--color-muted);
+  font-size: 0.88rem;
 }
 .assignment-page {
   margin-top: 35px;
@@ -1027,6 +1053,22 @@ h1 {
     flex-direction: column;
     gap: 7px;
     padding-inline: 8px;
+  }
+  .assignment-list-main {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0;
+  }
+  .assignment-row-actions {
+    padding-inline: 8px;
+  }
+  .assignment-row-confirmation {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-inline: 8px;
+  }
+  .assignment-row-feedback {
+    margin-inline: 8px;
   }
   .assignment-row-meta {
     width: 100%;

@@ -10,7 +10,9 @@ import { getClassById, type ClassSummary } from '../classes/classService';
 import {
   addAssignmentItem,
   archiveAssignment,
-  discardAssignment,
+  deleteAssignment,
+  duplicateAssignment,
+  getAssignmentDeleteStatus,
   getAssignmentById,
   getAssignmentAnalytics,
   listAssignmentItems,
@@ -518,9 +520,13 @@ function AssignmentBuilder({
   const [loadingItems, setLoadingItems] = useState(false);
   const [itemLoadError, setItemLoadError] = useState(initialItemsError);
   const [pending, setPending] = useState(false);
+  const [lifecyclePending, setLifecyclePending] = useState<
+    'duplicate' | 'checking-delete' | 'delete' | null
+  >(null);
   const [error, setError] = useState('');
+  const [deleteProtected, setDeleteProtected] = useState(false);
   const [confirmAction, setConfirmAction] = useState<
-    'publish' | 'archive' | 'discard' | null
+    'publish' | 'archive' | 'delete' | null
   >(null);
 
   const loadItems = useCallback(async () => {
@@ -696,6 +702,7 @@ function AssignmentBuilder({
     if (!confirmAction || pending) return;
     const action = confirmAction;
     setPending(true);
+    if (action === 'delete') setLifecyclePending('delete');
     setError('');
     let message: string | null = null;
     if (action === 'publish') {
@@ -707,14 +714,22 @@ function AssignmentBuilder({
       if (result.ok) setAssignment(result.value);
       else message = result.error.message;
     } else {
-      const result = await discardAssignment(assignment.id);
+      const result = await deleteAssignment(assignment.id);
       if (result.ok) {
+        setPending(false);
+        setLifecyclePending(null);
+        setConfirmAction(null);
         navigate(`/app/classes/${classItem.id}`, { replace: true });
+        return;
       } else {
         message = result.error.message;
+        if (result.error.code === 'assignment_has_results') {
+          setDeleteProtected(true);
+        }
       }
     }
     setPending(false);
+    setLifecyclePending(null);
     setConfirmAction(null);
     if (message) setError(message);
   };
@@ -727,6 +742,39 @@ function AssignmentBuilder({
     setPending(false);
     if (!result.ok) setError(result.error.message);
     else setAssignment(result.value);
+  };
+
+  const duplicateCurrent = async () => {
+    if (pending) return;
+    setPending(true);
+    setLifecyclePending('duplicate');
+    setError('');
+    const result = await duplicateAssignment(assignment.id);
+    setPending(false);
+    setLifecyclePending(null);
+    if (!result.ok) {
+      setError(result.error.message);
+      return;
+    }
+    navigate(`/app/classes/${classItem.id}/assignments/${result.value}`);
+  };
+
+  const requestDelete = async () => {
+    if (pending) return;
+    setPending(true);
+    setLifecyclePending('checking-delete');
+    setError('');
+    setDeleteProtected(false);
+    const result = await getAssignmentDeleteStatus(assignment.id);
+    setPending(false);
+    setLifecyclePending(null);
+    if (!result.ok) {
+      setError(result.error.message);
+    } else if (result.value) {
+      setDeleteProtected(true);
+    } else {
+      setConfirmAction('delete');
+    }
   };
 
   const totalProblemCount = items.reduce(
@@ -792,6 +840,12 @@ function AssignmentBuilder({
           disabled={pending}
         />
         <p className="field-hint">Due date: {formatDueAt(assignment.due_at)}</p>
+        {assignment.status !== 'draft' && (
+          <p className="field-hint">
+            Only the title and due date can be changed after publication.
+            Duplicate this assignment to change its practice blocks.
+          </p>
+        )}
         <button
           className="button button-quiet"
           type="submit"
@@ -981,12 +1035,24 @@ function AssignmentBuilder({
               Publish assignment
             </button>
             <button
+              className="button button-quiet"
+              type="button"
+              disabled={pending}
+              onClick={() => void duplicateCurrent()}
+            >
+              {lifecyclePending === 'duplicate'
+                ? 'Duplicating…'
+                : 'Duplicate assignment'}
+            </button>
+            <button
               className="button button-quiet danger-text-button"
               type="button"
               disabled={pending}
-              onClick={() => setConfirmAction('discard')}
+              onClick={() => void requestDelete()}
             >
-              Discard draft
+              {lifecyclePending === 'checking-delete'
+                ? 'Checking…'
+                : 'Delete assignment'}
             </button>
           </div>
         ) : assignment.status === 'published' ? (
@@ -1003,6 +1069,26 @@ function AssignmentBuilder({
             >
               Archive assignment
             </button>
+            <button
+              className="button button-quiet"
+              type="button"
+              disabled={pending}
+              onClick={() => void duplicateCurrent()}
+            >
+              {lifecyclePending === 'duplicate'
+                ? 'Duplicating…'
+                : 'Duplicate assignment'}
+            </button>
+            <button
+              className="button button-quiet danger-text-button"
+              type="button"
+              disabled={pending}
+              onClick={() => void requestDelete()}
+            >
+              {lifecyclePending === 'checking-delete'
+                ? 'Checking…'
+                : 'Delete assignment'}
+            </button>
           </div>
         ) : (
           <div className="lifecycle-actions">
@@ -1017,7 +1103,33 @@ function AssignmentBuilder({
             >
               Reactivate assignment
             </button>
+            <button
+              className="button button-quiet"
+              type="button"
+              disabled={pending}
+              onClick={() => void duplicateCurrent()}
+            >
+              {lifecyclePending === 'duplicate'
+                ? 'Duplicating…'
+                : 'Duplicate assignment'}
+            </button>
+            <button
+              className="button button-quiet danger-text-button"
+              type="button"
+              disabled={pending}
+              onClick={() => void requestDelete()}
+            >
+              {lifecyclePending === 'checking-delete'
+                ? 'Checking…'
+                : 'Delete assignment'}
+            </button>
           </div>
+        )}
+        {deleteProtected && (
+          <p className="muted-copy" role="status">
+            This assignment has student results and cannot be deleted. Duplicate
+            it to make changes.
+          </p>
         )}
         {confirmAction && (
           <div
@@ -1030,19 +1142,19 @@ function AssignmentBuilder({
                 ? 'Publish this assignment?'
                 : confirmAction === 'archive'
                   ? 'Archive this assignment?'
-                  : 'Discard this draft?'}
+                  : 'Delete assignment?'}
             </h3>
             <p>
               {confirmAction === 'publish'
                 ? 'Publishing permanently locks the practice blocks. You can still edit the title and due date.'
                 : confirmAction === 'archive'
                   ? 'This preserves the assignment and its locked practice content.'
-                  : 'This permanently deletes the draft and all of its practice blocks.'}
+                  : `“${assignment.title}” will be permanently deleted.`}
             </p>
             <div className="form-actions">
               <button
                 className={
-                  confirmAction === 'discard'
+                  confirmAction === 'delete'
                     ? 'button button-danger'
                     : 'button button-primary'
                 }
@@ -1050,13 +1162,15 @@ function AssignmentBuilder({
                 disabled={pending}
                 onClick={() => void runConfirmation()}
               >
-                {pending
-                  ? 'Working…'
-                  : confirmAction === 'publish'
-                    ? 'Publish assignment'
-                    : confirmAction === 'archive'
-                      ? 'Archive assignment'
-                      : 'Discard draft'}
+                {lifecyclePending === 'delete'
+                  ? 'Deleting…'
+                  : pending
+                    ? 'Working…'
+                    : confirmAction === 'publish'
+                      ? 'Publish assignment'
+                      : confirmAction === 'archive'
+                        ? 'Archive assignment'
+                        : 'Delete assignment'}
               </button>
               <button
                 className="button button-quiet"
@@ -1145,6 +1259,7 @@ export function AssignmentBuilderPage() {
   }
   return (
     <AssignmentBuilder
+      key={assignment.id}
       classItem={classItem}
       initialAssignment={assignment}
       initialItems={initialItems}

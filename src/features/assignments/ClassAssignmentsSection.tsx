@@ -1,24 +1,179 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { formatDueAt } from './assignmentFormatters';
 import {
+  deleteAssignment,
+  duplicateAssignment,
+  getAssignmentDeleteStatus,
   listClassAssignments,
   type AssignmentSummary,
 } from './assignmentService';
 
-function AssignmentRows({ assignments }: { assignments: AssignmentSummary[] }) {
+function AssignmentRow({
+  assignment,
+  active,
+  onDeleted,
+}: {
+  assignment: AssignmentSummary;
+  active: boolean;
+  onDeleted: (id: string) => void;
+}) {
+  const navigate = useNavigate();
+  const [pending, setPending] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    'duplicate' | 'checking-delete' | 'delete' | null
+  >(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteProtected, setDeleteProtected] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const duplicate = async () => {
+    if (pending || !active) return;
+    setPending(true);
+    setPendingAction('duplicate');
+    setMessage('');
+    const result = await duplicateAssignment(assignment.id);
+    setPending(false);
+    setPendingAction(null);
+    if (!result.ok) {
+      setMessage(result.error.message);
+      return;
+    }
+    navigate(`/app/classes/${assignment.class_id}/assignments/${result.value}`);
+  };
+
+  const requestDelete = async () => {
+    if (pending || !active) return;
+    setPending(true);
+    setPendingAction('checking-delete');
+    setMessage('');
+    setConfirmDelete(false);
+    setDeleteProtected(false);
+    const result = await getAssignmentDeleteStatus(assignment.id);
+    setPending(false);
+    setPendingAction(null);
+    if (!result.ok) {
+      setMessage(result.error.message);
+    } else if (result.value) {
+      setDeleteProtected(true);
+    } else {
+      setConfirmDelete(true);
+    }
+  };
+
+  const confirm = async () => {
+    if (pending || !confirmDelete) return;
+    setPending(true);
+    setPendingAction('delete');
+    setMessage('');
+    const result = await deleteAssignment(assignment.id);
+    setPending(false);
+    setPendingAction(null);
+    if (!result.ok) {
+      setMessage(result.error.message);
+      if (result.error.code === 'assignment_has_results') {
+        setDeleteProtected(true);
+        setConfirmDelete(false);
+      }
+      return;
+    }
+    onDeleted(assignment.id);
+  };
+
+  return (
+    <li className="assignment-list-entry">
+      <div className="assignment-list-main">
+        <Link className="assignment-row" to={`assignments/${assignment.id}`}>
+          <span className="assignment-row-title">{assignment.title}</span>
+          <span className="assignment-row-meta">
+            {formatDueAt(assignment.due_at)}
+            <span className="row-open">Open →</span>
+          </span>
+        </Link>
+        <div className="assignment-row-actions" aria-label="Assignment actions">
+          <Link
+            className="inline-link"
+            to={`assignments/${assignment.id}`}
+            aria-label={`Edit ${assignment.title}`}
+          >
+            Edit
+          </Link>
+          <button
+            className="inline-link"
+            type="button"
+            disabled={pending || !active}
+            onClick={() => void duplicate()}
+          >
+            {pendingAction === 'duplicate' ? 'Duplicating…' : 'Duplicate'}
+          </button>
+          <button
+            className="inline-link danger-link"
+            type="button"
+            disabled={pending || !active}
+            onClick={() => void requestDelete()}
+          >
+            {pendingAction === 'checking-delete' ? 'Checking…' : 'Delete'}
+          </button>
+        </div>
+      </div>
+      {confirmDelete && (
+        <div
+          className="assignment-row-confirmation"
+          role="group"
+          aria-label={`Delete ${assignment.title}?`}
+        >
+          <span>“{assignment.title}” will be permanently deleted.</span>
+          <button
+            className="inline-link danger-link"
+            type="button"
+            disabled={pending}
+            onClick={() => void confirm()}
+          >
+            {pendingAction === 'delete' ? 'Deleting…' : 'Delete assignment'}
+          </button>
+          <button
+            className="inline-link"
+            type="button"
+            disabled={pending}
+            onClick={() => setConfirmDelete(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      {deleteProtected && (
+        <p className="assignment-row-feedback" role="status">
+          This assignment has student results and cannot be deleted. Duplicate
+          it to make changes.
+        </p>
+      )}
+      {message && (
+        <p className="assignment-row-feedback" role="alert">
+          {message}
+        </p>
+      )}
+    </li>
+  );
+}
+
+function AssignmentRows({
+  assignments,
+  active,
+  onDeleted,
+}: {
+  assignments: AssignmentSummary[];
+  active: boolean;
+  onDeleted: (id: string) => void;
+}) {
   return (
     <ul className="assignment-list">
       {assignments.map((assignment) => (
-        <li key={assignment.id}>
-          <Link className="assignment-row" to={`assignments/${assignment.id}`}>
-            <span className="assignment-row-title">{assignment.title}</span>
-            <span className="assignment-row-meta">
-              {formatDueAt(assignment.due_at)}
-              <span className="row-open">Open →</span>
-            </span>
-          </Link>
-        </li>
+        <AssignmentRow
+          key={assignment.id}
+          assignment={assignment}
+          active={active}
+          onDeleted={onDeleted}
+        />
       ))}
     </ul>
   );
@@ -53,6 +208,10 @@ export function ClassAssignmentsSection({
       mounted = false;
     };
   }, [classId, revision]);
+
+  const removeAssignment = (id: string) => {
+    setAssignments((current) => current.filter((item) => item.id !== id));
+  };
 
   const published = assignments.filter((item) => item.status === 'published');
   const drafts = assignments.filter((item) => item.status === 'draft');
@@ -103,19 +262,31 @@ export function ClassAssignmentsSection({
           {published.length > 0 && (
             <section aria-labelledby="published-assignments-title">
               <h3 id="published-assignments-title">Published</h3>
-              <AssignmentRows assignments={published} />
+              <AssignmentRows
+                assignments={published}
+                active={active}
+                onDeleted={removeAssignment}
+              />
             </section>
           )}
           {drafts.length > 0 && (
             <section aria-labelledby="draft-assignments-title">
               <h3 id="draft-assignments-title">Drafts</h3>
-              <AssignmentRows assignments={drafts} />
+              <AssignmentRows
+                assignments={drafts}
+                active={active}
+                onDeleted={removeAssignment}
+              />
             </section>
           )}
           {archived.length > 0 && (
             <section aria-labelledby="archived-assignments-title">
               <h3 id="archived-assignments-title">Archived</h3>
-              <AssignmentRows assignments={archived} />
+              <AssignmentRows
+                assignments={archived}
+                active={active}
+                onDeleted={removeAssignment}
+              />
             </section>
           )}
         </div>
