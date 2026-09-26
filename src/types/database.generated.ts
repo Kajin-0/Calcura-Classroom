@@ -346,9 +346,17 @@ export type Database = {
           updated_at: string;
         }[];
       };
+      delete_assignment: {
+        Args: { p_assignment_id: string };
+        Returns: undefined;
+      };
       discard_assignment: {
         Args: { p_assignment_id: string };
         Returns: undefined;
+      };
+      duplicate_assignment: {
+        Args: { p_assignment_id: string };
+        Returns: string;
       };
       ensure_personal_workspace: {
         Args: never;
@@ -358,6 +366,14 @@ export type Database = {
           workspace_id: string;
           workspace_type: string;
         }[];
+      };
+      get_assignment_analytics: {
+        Args: { p_assignment_id: string };
+        Returns: Json;
+      };
+      get_assignment_delete_status: {
+        Args: { p_assignment_id: string };
+        Returns: boolean;
       };
       get_assignment_student_progress: {
         Args: { p_assignment_id: string };
@@ -369,10 +385,6 @@ export type Database = {
           student_user_id: string;
           total_problem_count: number;
         }[];
-      };
-      get_assignment_analytics: {
-        Args: { p_assignment_id: string };
-        Returns: Json;
       };
       get_class_join_code: { Args: { p_class_id: string }; Returns: string };
       join_class_by_code: {
