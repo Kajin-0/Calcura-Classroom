@@ -219,6 +219,25 @@ h1 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.workspace-plan-label {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.capability-locked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+.capability-locked strong {
+  color: var(--color-ink);
+}
 .shell-notice {
   width: min(100% - 40px, 960px);
   margin: 16px auto 0;

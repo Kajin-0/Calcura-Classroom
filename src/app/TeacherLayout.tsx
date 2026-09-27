@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { useAuthSession } from '../features/auth/useAuthSession';
 import { useWorkspace } from '../features/workspaces/useWorkspace';
+import { WorkspacePlanLabel } from '../features/workspaces/entitlements/WorkspacePlanLabel';
 
 export function TeacherLayout() {
   const { session, signOut } = useAuthSession();
@@ -23,6 +24,7 @@ export function TeacherLayout() {
           {session?.user.email && (
             <span className="account-email">{session.user.email}</span>
           )}
+          <WorkspacePlanLabel />
           <button
             className="button button-quiet"
             type="button"
