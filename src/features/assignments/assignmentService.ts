@@ -2,6 +2,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   getAssignmentActivity,
   isAssignmentActivityKey,
+  isSupportedAssignmentDifficulty,
+  type AssignmentDifficultyProfile,
+  type AssignmentVariantPolicy,
   type AssignmentActivityKey,
 } from '../../contracts/assignmentActivities';
 import { getSupabaseClient } from '../../lib/supabase/client';
@@ -36,6 +39,10 @@ export type AssignmentItemSummary = Pick<
   | 'activity_contract_version'
   | 'activity_key'
   | 'problem_count'
+  | 'generation_spec_version'
+  | 'difficulty_profile'
+  | 'variant_policy'
+  | 'generation_seed'
   | 'created_at'
   | 'updated_at'
 >;
@@ -112,7 +119,7 @@ export interface AssignmentAnalytics {
 const assignmentColumns =
   'id, class_id, title, due_at, status, published_at, created_at, updated_at';
 const itemColumns =
-  'id, assignment_id, position, activity_contract_version, activity_key, problem_count, created_at, updated_at';
+  'id, assignment_id, position, activity_contract_version, activity_key, problem_count, generation_spec_version, difficulty_profile, variant_policy, generation_seed, created_at, updated_at';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -646,6 +653,8 @@ export async function addAssignmentItem(
     assignmentId: string;
     activityKey: AssignmentActivityKey;
     problemCount: number;
+    difficultyProfile?: AssignmentDifficultyProfile;
+    variantPolicy?: AssignmentVariantPolicy;
   },
   client: Client | null = getSupabaseClient(),
 ): Promise<ServiceResult<AssignmentItemSummary>> {
@@ -656,6 +665,14 @@ export async function addAssignmentItem(
   }
   if (!validProblemCount(input.problemCount)) {
     return failure('invalid_problem_count');
+  }
+  const difficultyProfile = input.difficultyProfile ?? 'auto';
+  const variantPolicy = input.variantPolicy ?? 'individualized';
+  if (!isSupportedAssignmentDifficulty(input.activityKey, difficultyProfile)) {
+    return failure('invalid_assignment_generation_spec');
+  }
+  if (variantPolicy !== 'individualized' && variantPolicy !== 'same_for_all') {
+    return failure('invalid_assignment_generation_spec');
   }
 
   const current = await listAssignmentItems(input.assignmentId, resolved.value);
@@ -672,6 +689,9 @@ export async function addAssignmentItem(
         activity_contract_version: 1,
         activity_key: input.activityKey,
         problem_count: input.problemCount,
+        generation_spec_version: 1,
+        difficulty_profile: difficultyProfile,
+        variant_policy: variantPolicy,
       })
       .select(itemColumns)
       .single();
@@ -687,6 +707,8 @@ export async function updateAssignmentItem(
   changes: {
     activityKey?: AssignmentActivityKey;
     problemCount?: number;
+    difficultyProfile?: AssignmentDifficultyProfile;
+    variantPolicy?: AssignmentVariantPolicy;
   },
   client: Client | null = getSupabaseClient(),
 ): Promise<ServiceResult<AssignmentItemSummary>> {
@@ -695,7 +717,7 @@ export async function updateAssignmentItem(
   const update: Database['public']['Tables']['assignment_items']['Update'] = {};
   if (changes.activityKey !== undefined) {
     if (!isAssignmentActivityKey(changes.activityKey)) {
-      return failure('invalid_activity_key');
+      return failure('invalid_assignment_generation_spec');
     }
     update.activity_key = changes.activityKey;
   }
@@ -704,6 +726,42 @@ export async function updateAssignmentItem(
       return failure('invalid_problem_count');
     }
     update.problem_count = changes.problemCount;
+  }
+  if (changes.difficultyProfile !== undefined) {
+    if (
+      changes.difficultyProfile !== 'auto' &&
+      changes.difficultyProfile !== 'beginner' &&
+      changes.difficultyProfile !== 'intermediate' &&
+      changes.difficultyProfile !== 'advanced'
+    ) {
+      return failure('invalid_assignment_generation_spec');
+    }
+    update.difficulty_profile = changes.difficultyProfile;
+  }
+  if (changes.variantPolicy !== undefined) {
+    if (
+      changes.variantPolicy !== 'individualized' &&
+      changes.variantPolicy !== 'same_for_all'
+    ) {
+      return failure('invalid_activity_key');
+    }
+    update.variant_policy = changes.variantPolicy;
+  }
+  if (
+    changes.difficultyProfile !== undefined ||
+    changes.variantPolicy !== undefined
+  ) {
+    update.generation_spec_version = 1;
+  }
+  if (
+    changes.activityKey !== undefined &&
+    changes.difficultyProfile !== undefined &&
+    !isSupportedAssignmentDifficulty(
+      changes.activityKey,
+      changes.difficultyProfile,
+    )
+  ) {
+    return failure('invalid_assignment_generation_spec');
   }
   if (Object.keys(update).length === 0) return failure('unexpected');
 

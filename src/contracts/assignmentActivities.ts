@@ -4,7 +4,23 @@ export interface AssignmentActivity {
   label: string;
   description: string;
   subject: 'integration';
+  difficultyProfiles: readonly AssignmentDifficultyProfile[];
 }
+
+export type AssignmentDifficultyProfile =
+  'auto' | 'beginner' | 'intermediate' | 'advanced';
+
+export type AssignmentVariantPolicy = 'individualized' | 'same_for_all';
+
+export const assignmentDifficultyLabels: Record<
+  AssignmentDifficultyProfile,
+  string
+> = {
+  auto: 'Auto',
+  beginner: 'Beginner',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+};
 
 export const assignmentActivities = [
   {
@@ -13,6 +29,7 @@ export const assignmentActivities = [
     label: 'Basic trigonometric integration',
     description: 'Practice standard trigonometric integration forms.',
     subject: 'integration',
+    difficultyProfiles: ['auto', 'beginner', 'intermediate'],
   },
   {
     key: 'integration.u_substitution.v1',
@@ -20,6 +37,7 @@ export const assignmentActivities = [
     label: 'U-substitution',
     description: 'Practice recognizing and applying substitution.',
     subject: 'integration',
+    difficultyProfiles: ['auto', 'beginner', 'intermediate'],
   },
   {
     key: 'integration.log_u_substitution.v1',
@@ -27,6 +45,7 @@ export const assignmentActivities = [
     label: 'Logarithmic U-substitution',
     description: 'Practice logarithmic forms suited to substitution.',
     subject: 'integration',
+    difficultyProfiles: ['auto', 'intermediate'],
   },
   {
     key: 'integration.by_parts.v1',
@@ -34,6 +53,7 @@ export const assignmentActivities = [
     label: 'Integration by parts',
     description: 'Practice integration by parts across common forms.',
     subject: 'integration',
+    difficultyProfiles: ['auto', 'advanced'],
   },
   {
     key: 'integration.inverse_trig.v1',
@@ -42,6 +62,7 @@ export const assignmentActivities = [
     description:
       'Practice integrals that resolve to inverse-trigonometric forms.',
     subject: 'integration',
+    difficultyProfiles: ['auto', 'intermediate'],
   },
   {
     key: 'integration.partial_fractions.v1',
@@ -49,6 +70,7 @@ export const assignmentActivities = [
     label: 'Partial fractions',
     description: 'Practice rational integration using partial fractions.',
     subject: 'integration',
+    difficultyProfiles: ['auto', 'intermediate'],
   },
 ] as const satisfies readonly AssignmentActivity[];
 
@@ -63,4 +85,17 @@ export function isAssignmentActivityKey(
 
 export function getAssignmentActivity(key: string) {
   return assignmentActivities.find((activity) => activity.key === key);
+}
+
+export function isSupportedAssignmentDifficulty(
+  activityKey: string,
+  profile: string,
+): profile is AssignmentDifficultyProfile {
+  return assignmentActivities.some(
+    (activity) =>
+      activity.key === activityKey &&
+      (
+        activity.difficultyProfiles as readonly AssignmentDifficultyProfile[]
+      ).includes(profile as AssignmentDifficultyProfile),
+  );
 }

@@ -2,7 +2,11 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   assignmentActivities,
+  assignmentDifficultyLabels,
   isAssignmentActivityKey,
+  isSupportedAssignmentDifficulty,
+  type AssignmentDifficultyProfile,
+  type AssignmentVariantPolicy,
   type AssignmentActivityKey,
 } from '../../contracts/assignmentActivities';
 import { useWorkspace } from '../workspaces/useWorkspace';
@@ -73,6 +77,16 @@ function PracticeBlock({
           <span>
             {item.problem_count}{' '}
             {item.problem_count === 1 ? 'problem' : 'problems'}
+          </span>
+          <span className="practice-block-generation-summary">
+            {item.difficulty_profile
+              ? assignmentDifficultyLabels[
+                  item.difficulty_profile as AssignmentDifficultyProfile
+                ]
+              : 'Auto'}
+            {item.variant_policy === 'same_for_all'
+              ? ' · Same for everyone'
+              : ''}
           </span>
           {editing ? (
             <span className="practice-block-editing">Editing</span>
@@ -516,6 +530,11 @@ function AssignmentBuilder({
     assignmentActivities[0].key,
   );
   const [problemCount, setProblemCount] = useState('5');
+  const [difficultyProfile, setDifficultyProfile] =
+    useState<AssignmentDifficultyProfile>('auto');
+  const [variantPolicy, setVariantPolicy] =
+    useState<AssignmentVariantPolicy>('individualized');
+  const [generationOptionsOpen, setGenerationOptionsOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [loadingItems, setLoadingItems] = useState(false);
   const [itemLoadError, setItemLoadError] = useState(initialItemsError);
@@ -560,13 +579,18 @@ function AssignmentBuilder({
   );
   const editorHasChanges = editingItem
     ? activityKey !== editingItem.activity_key ||
-      parsedProblemCount !== editingItem.problem_count
+      parsedProblemCount !== editingItem.problem_count ||
+      difficultyProfile !== (editingItem.difficulty_profile ?? 'auto') ||
+      variantPolicy !== (editingItem.variant_policy ?? 'individualized')
     : false;
 
   const resetEditor = () => {
     setEditingItemId(null);
     setActivityKey(assignmentActivities[0].key);
     setProblemCount('5');
+    setDifficultyProfile('auto');
+    setVariantPolicy('individualized');
+    setGenerationOptionsOpen(false);
   };
 
   const editBlock = (item: AssignmentItemSummary) => {
@@ -574,6 +598,23 @@ function AssignmentBuilder({
     setEditingItemId(item.id);
     setActivityKey(item.activity_key);
     setProblemCount(String(item.problem_count));
+    setDifficultyProfile(
+      item.difficulty_profile === 'beginner' ||
+        item.difficulty_profile === 'intermediate' ||
+        item.difficulty_profile === 'advanced'
+        ? item.difficulty_profile
+        : 'auto',
+    );
+    setVariantPolicy(
+      item.variant_policy === 'same_for_all'
+        ? 'same_for_all'
+        : 'individualized',
+    );
+    setGenerationOptionsOpen(
+      (item.difficulty_profile !== null &&
+        item.difficulty_profile !== 'auto') ||
+        item.variant_policy === 'same_for_all',
+    );
   };
 
   const saveMetadata = async (event: FormEvent<HTMLFormElement>) => {
@@ -619,6 +660,8 @@ function AssignmentBuilder({
       assignmentId: assignment.id,
       activityKey,
       problemCount: count,
+      difficultyProfile,
+      variantPolicy,
     });
     setPending(false);
     if (!result.ok) {
@@ -630,6 +673,9 @@ function AssignmentBuilder({
     );
     setActivityKey(assignmentActivities[0].key);
     setProblemCount('5');
+    setDifficultyProfile('auto');
+    setVariantPolicy('individualized');
+    setGenerationOptionsOpen(false);
   };
 
   const saveBlock = async (
@@ -643,6 +689,8 @@ function AssignmentBuilder({
     const result = await updateAssignmentItem(item.id, {
       activityKey: key,
       problemCount: count,
+      difficultyProfile,
+      variantPolicy,
     });
     setPending(false);
     if (!result.ok) {
@@ -867,8 +915,7 @@ function AssignmentBuilder({
           <div>
             <h2 id="practice-content-title">Practice blocks</h2>
             <p className="muted-copy">
-              Each block asks Calcura to generate the selected type of practice
-              later.
+              Generated with Calcura Guided practice.
             </p>
             <p className="muted-copy" role="status" aria-live="polite">
               {items.length} {items.length === 1 ? 'block' : 'blocks'} ·{' '}
@@ -913,9 +960,18 @@ function AssignmentBuilder({
                 <select
                   id="block-editor-activity"
                   value={activityKey}
-                  onChange={(event) =>
-                    setActivityKey(event.target.value as AssignmentActivityKey)
-                  }
+                  onChange={(event) => {
+                    const nextKey = event.target.value as AssignmentActivityKey;
+                    setActivityKey(nextKey);
+                    if (
+                      !isSupportedAssignmentDifficulty(
+                        nextKey,
+                        difficultyProfile,
+                      )
+                    ) {
+                      setDifficultyProfile('auto');
+                    }
+                  }}
                   disabled={pending}
                 >
                   {assignmentActivities.map((activity) => (
@@ -939,6 +995,62 @@ function AssignmentBuilder({
                 />
               </label>
             </div>
+            <details
+              className="assignment-generation-options"
+              open={generationOptionsOpen}
+            >
+              <summary
+                onClick={(event) => {
+                  event.preventDefault();
+                  setGenerationOptionsOpen((current) => !current);
+                }}
+              >
+                Generation options
+              </summary>
+              <div className="assignment-generation-fields">
+                <label htmlFor="block-editor-difficulty">
+                  Difficulty
+                  <select
+                    id="block-editor-difficulty"
+                    value={difficultyProfile}
+                    onChange={(event) =>
+                      setDifficultyProfile(
+                        event.target.value as AssignmentDifficultyProfile,
+                      )
+                    }
+                    disabled={pending}
+                  >
+                    {assignmentActivities
+                      .find((activity) => activity.key === activityKey)
+                      ?.difficultyProfiles.map((profile) => (
+                        <option key={profile} value={profile}>
+                          {assignmentDifficultyLabels[profile]}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label htmlFor="block-editor-variants">
+                  Variants
+                  <select
+                    id="block-editor-variants"
+                    value={variantPolicy}
+                    onChange={(event) =>
+                      setVariantPolicy(
+                        event.target.value as AssignmentVariantPolicy,
+                      )
+                    }
+                    disabled={pending}
+                  >
+                    <option value="individualized">Individualized</option>
+                    <option value="same_for_all">Same for everyone</option>
+                  </select>
+                </label>
+              </div>
+              <p className="field-hint">
+                Calcura generates one reproducible Guided problem for each
+                assigned position.
+              </p>
+            </details>
             <div className="practice-block-actions">
               <button
                 className="button button-quiet"

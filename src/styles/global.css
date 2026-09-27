@@ -743,7 +743,8 @@ h1 {
   letter-spacing: -0.015em;
 }
 .assignment-form label,
-.practice-block-fields label {
+.practice-block-fields label,
+.assignment-generation-fields label {
   display: grid;
   gap: 7px;
   font-size: 0.9rem;
@@ -751,7 +752,8 @@ h1 {
 }
 .assignment-form input,
 .practice-block-fields input,
-.practice-block-fields select {
+.practice-block-fields select,
+.assignment-generation-fields select {
   width: 100%;
   min-height: 44px;
   padding: 9px 11px;
@@ -976,6 +978,9 @@ h1 {
   color: var(--color-muted);
   white-space: nowrap;
 }
+.practice-block-summary > .practice-block-generation-summary {
+  white-space: normal;
+}
 .practice-block-summary .practice-block-editing {
   font-size: 0.82rem;
 }
@@ -989,6 +994,36 @@ h1 {
   border: 1px dashed #a8aaa3;
   border-radius: 7px;
   background: #fbfbfa;
+}
+.assignment-generation-options {
+  padding: 10px 0 2px;
+  border-top: 1px solid #e4e5e0;
+}
+.assignment-generation-options summary {
+  width: fit-content;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  color: var(--color-focus);
+  font-size: 0.9rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.assignment-generation-options summary:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+.assignment-generation-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 10px;
+}
+.assignment-generation-fields select {
+  min-width: 0;
+}
+.assignment-generation-options .field-hint {
+  margin-top: 9px;
 }
 .add-block-form > .button {
   justify-self: start;
@@ -1164,6 +1199,10 @@ h1 {
   }
   .practice-block-fields {
     grid-template-columns: minmax(0, 1fr) 100px;
+    gap: 10px;
+  }
+  .assignment-generation-fields {
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px;
   }
   .practice-block {

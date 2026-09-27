@@ -40,30 +40,42 @@ export type Database = {
           activity_key: string;
           assignment_id: string;
           created_at: string;
+          difficulty_profile: string | null;
+          generation_seed: string | null;
+          generation_spec_version: number | null;
           id: string;
           position: number;
           problem_count: number;
           updated_at: string;
+          variant_policy: string | null;
         };
         Insert: {
           activity_contract_version?: number;
           activity_key: string;
           assignment_id: string;
           created_at?: string;
+          difficulty_profile?: string | null;
+          generation_seed?: string | null;
+          generation_spec_version?: number | null;
           id?: string;
           position: number;
           problem_count: number;
           updated_at?: string;
+          variant_policy?: string | null;
         };
         Update: {
           activity_contract_version?: number;
           activity_key?: string;
           assignment_id?: string;
           created_at?: string;
+          difficulty_profile?: string | null;
+          generation_seed?: string | null;
+          generation_spec_version?: number | null;
           id?: string;
           position?: number;
           problem_count?: number;
           updated_at?: string;
+          variant_policy?: string | null;
         };
         Relationships: [
           {

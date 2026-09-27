@@ -9,6 +9,7 @@ export type ClassroomErrorCode =
   | 'invalid_assignment_title'
   | 'invalid_due_date'
   | 'invalid_activity_key'
+  | 'invalid_assignment_generation_spec'
   | 'invalid_problem_count'
   | 'assignment_not_found'
   | 'invalid_assignment_transition'
@@ -39,6 +40,8 @@ const userMessages: Record<ClassroomErrorCode, string> = {
     'Enter an assignment title between 1 and 160 characters.',
   invalid_due_date: 'Enter a valid due date and time.',
   invalid_activity_key: 'Choose a supported practice activity.',
+  invalid_assignment_generation_spec:
+    'Choose generation options supported by this practice activity.',
   invalid_problem_count: 'Choose between 1 and 20 problems for each block.',
   assignment_not_found: 'The requested assignment is unavailable.',
   invalid_assignment_transition:
