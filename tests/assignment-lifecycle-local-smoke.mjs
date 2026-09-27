@@ -143,10 +143,16 @@ async function main() {
     'source draft creation',
   );
   const sourceItems = [];
-  for (const [position, activityKey, problemCount] of [
-    [0, 'integration.u_substitution.v1', 5],
-    [1, 'integration.by_parts.v1', 7],
-    [2, 'integration.inverse_trig.v1', 5],
+  for (const [
+    position,
+    activityKey,
+    problemCount,
+    difficultyProfile,
+    variantPolicy,
+  ] of [
+    [0, 'integration.u_substitution.v1', 5, 'beginner', 'same_for_all'],
+    [1, 'integration.by_parts.v1', 7, 'advanced', 'individualized'],
+    [2, 'integration.inverse_trig.v1', 5, 'auto', 'individualized'],
   ]) {
     sourceItems.push(
       unwrap(
@@ -158,9 +164,12 @@ async function main() {
             activity_contract_version: 1,
             activity_key: activityKey,
             problem_count: problemCount,
+            generation_spec_version: 1,
+            difficulty_profile: difficultyProfile,
+            variant_policy: variantPolicy,
           })
           .select(
-            'id, position, activity_contract_version, activity_key, problem_count',
+            'id, position, activity_contract_version, activity_key, problem_count, generation_spec_version, difficulty_profile, variant_policy, generation_seed',
           )
           .single(),
         `source item ${position + 1} creation`,
@@ -203,7 +212,7 @@ async function main() {
     await clients.teacher
       .from('assignment_items')
       .select(
-        'id, position, activity_contract_version, activity_key, problem_count',
+        'id, position, activity_contract_version, activity_key, problem_count, generation_spec_version, difficulty_profile, variant_policy, generation_seed',
       )
       .eq('assignment_id', draftCopyId)
       .order('position'),
@@ -217,11 +226,17 @@ async function main() {
         activity_contract_version,
         activity_key,
         problem_count,
+        generation_spec_version,
+        difficulty_profile,
+        variant_policy,
       }) => ({
         position,
         activity_contract_version,
         activity_key,
         problem_count,
+        generation_spec_version,
+        difficulty_profile,
+        variant_policy,
       }),
     ),
     sourceItems.map(
@@ -230,17 +245,31 @@ async function main() {
         activity_contract_version,
         activity_key,
         problem_count,
+        generation_spec_version,
+        difficulty_profile,
+        variant_policy,
       }) => ({
         position,
         activity_contract_version,
         activity_key,
         problem_count,
+        generation_spec_version,
+        difficulty_profile,
+        variant_policy,
       }),
     ),
   );
   assert.equal(
     copiedItems.some((copy) => sourceItems.some((item) => item.id === copy.id)),
     false,
+  );
+  assert.ok(
+    copiedItems.every(
+      (copy, index) =>
+        copy.generation_seed &&
+        copy.generation_seed !== sourceItems[index].generation_seed,
+    ),
+    'duplicates preserve intent but receive fresh generation seeds',
   );
   assert.equal(
     unwrap(

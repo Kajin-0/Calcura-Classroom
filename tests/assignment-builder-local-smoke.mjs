@@ -13,11 +13,13 @@ const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
 );
+const supabaseWorkdir = process.env.SUPABASE_WORKDIR ?? repoRoot;
 const status = spawnSync(
   path.join(repoRoot, 'node_modules/.bin/supabase'),
   ['status', '-o', 'env'],
   {
-    cwd: repoRoot,
+    cwd: supabaseWorkdir,
+    env: { ...process.env, PWD: supabaseWorkdir },
     encoding: 'utf8',
     maxBuffer: 2 * 1024 * 1024,
   },
@@ -63,6 +65,8 @@ const cases = [
       'integration.inverse_trig.v1',
     ],
     counts: [5, 5, 5],
+    difficultyProfiles: ['beginner', 'auto', 'intermediate'],
+    variantPolicies: ['same_for_all', 'individualized', 'individualized'],
   },
   {
     name: 'repeated-activity',
@@ -72,6 +76,8 @@ const cases = [
       'integration.by_parts.v1',
     ],
     counts: [5, 5, 5],
+    difficultyProfiles: ['auto', 'auto', 'auto'],
+    variantPolicies: ['individualized', 'individualized', 'individualized'],
   },
   {
     name: 'four-mixed',
@@ -82,6 +88,13 @@ const cases = [
       'integration.inverse_trig.v1',
     ],
     counts: [5, 5, 7, 5],
+    difficultyProfiles: ['auto', 'beginner', 'advanced', 'intermediate'],
+    variantPolicies: [
+      'individualized',
+      'individualized',
+      'same_for_all',
+      'individualized',
+    ],
   },
 ];
 let userId;
@@ -101,7 +114,7 @@ async function rows(assignmentId) {
     await teacher
       .from('assignment_items')
       .select(
-        'id,assignment_id,position,activity_key,problem_count,created_at,updated_at',
+        'id,assignment_id,position,activity_key,problem_count,generation_spec_version,difficulty_profile,variant_policy,generation_seed,created_at,updated_at',
       )
       .eq('assignment_id', assignmentId)
       .order('position'),
@@ -171,6 +184,14 @@ async function runCase(caseSpec, session) {
       await page
         .locator('#block-editor-count')
         .fill(String(caseSpec.counts[index]));
+      const difficulty = caseSpec.difficultyProfiles?.[index] ?? 'auto';
+      const variantPolicy =
+        caseSpec.variantPolicies?.[index] ?? 'individualized';
+      if (difficulty !== 'auto' || variantPolicy !== 'individualized') {
+        await page.getByText('Generation options').click();
+        await page.getByLabel('Difficulty').selectOption(difficulty);
+        await page.getByLabel('Variants').selectOption(variantPolicy);
+      }
       const [response] = await Promise.all([
         page.waitForResponse(
           (candidate) =>
@@ -222,6 +243,23 @@ async function runCase(caseSpec, session) {
         database.map((item) => item.problem_count),
         caseSpec.counts.slice(0, index + 1),
       );
+      assert.deepEqual(
+        database.map((item) => item.difficulty_profile),
+        (caseSpec.difficultyProfiles ?? [])
+          .slice(0, index + 1)
+          .map((value) => value ?? 'auto'),
+      );
+      assert.deepEqual(
+        database.map((item) => item.variant_policy),
+        (caseSpec.variantPolicies ?? [])
+          .slice(0, index + 1)
+          .map((value) => value ?? 'individualized'),
+      );
+      assert.ok(
+        database.every(
+          (item) => item.generation_spec_version === 1 && item.generation_seed,
+        ),
+      );
       assert.equal(
         new Set(database.map((item) => item.id)).size,
         database.length,
@@ -242,6 +280,14 @@ async function runCase(caseSpec, session) {
     assert.deepEqual(
       (await rows(assignmentId)).map((item) => item.problem_count),
       caseSpec.counts,
+    );
+    assert.deepEqual(
+      (await rows(assignmentId)).map((item) => item.difficulty_profile),
+      caseSpec.difficultyProfiles,
+    );
+    assert.deepEqual(
+      (await rows(assignmentId)).map((item) => item.variant_policy),
+      caseSpec.variantPolicies,
     );
 
     if (caseSpec.name === 'three-mixed') {
@@ -315,11 +361,22 @@ try {
           snapshots: report.snapshots.map((snapshot) => ({
             ...snapshot,
             database: snapshot.database.map(
-              ({ id, position, activity_key, problem_count }) => ({
+              ({
                 id,
                 position,
                 activity_key,
                 problem_count,
+                generation_spec_version,
+                difficulty_profile,
+                variant_policy,
+              }) => ({
+                id,
+                position,
+                activity_key,
+                problem_count,
+                generation_spec_version,
+                difficulty_profile,
+                variant_policy,
               }),
             ),
           })),

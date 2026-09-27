@@ -3,6 +3,7 @@ import {
   assignmentActivities,
   getAssignmentActivity,
   isAssignmentActivityKey,
+  isSupportedAssignmentDifficulty,
 } from '../../src/contracts/assignmentActivities';
 
 describe('versioned assignment activity contract', () => {
@@ -48,5 +49,32 @@ describe('versioned assignment activity contract', () => {
     expect(isAssignmentActivityKey('partialFractions.distinctLinear')).toBe(
       false,
     );
+  });
+
+  it('only exposes difficulty profiles supported by each existing Guided generator', () => {
+    expect(
+      isSupportedAssignmentDifficulty(
+        'integration.u_substitution.v1',
+        'beginner',
+      ),
+    ).toBe(true);
+    expect(
+      isSupportedAssignmentDifficulty(
+        'integration.u_substitution.v1',
+        'intermediate',
+      ),
+    ).toBe(true);
+    expect(
+      isSupportedAssignmentDifficulty('integration.basic_trig.v1', 'advanced'),
+    ).toBe(false);
+    expect(
+      isSupportedAssignmentDifficulty(
+        'integration.inverse_trig.v1',
+        'advanced',
+      ),
+    ).toBe(false);
+    expect(
+      isSupportedAssignmentDifficulty('integration.by_parts.v1', 'advanced'),
+    ).toBe(true);
   });
 });

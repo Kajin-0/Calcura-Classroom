@@ -103,6 +103,10 @@ const item: AssignmentItemSummary = {
   activity_contract_version: 1,
   activity_key: 'integration.u_substitution.v1',
   problem_count: 5,
+  generation_spec_version: 1,
+  difficulty_profile: 'auto',
+  variant_policy: 'individualized',
+  generation_seed: '93000000-0000-4000-8000-000000000001',
   created_at: '2026-09-24T00:00:00Z',
   updated_at: '2026-09-24T00:00:00Z',
 };
@@ -397,6 +401,8 @@ describe('teacher assignment workflow', () => {
         assignmentId: draft.id,
         activityKey: 'integration.by_parts.v1',
         problemCount: 6,
+        difficultyProfile: 'auto',
+        variantPolicy: 'individualized',
       }),
     );
     expect(
@@ -423,6 +429,61 @@ describe('teacher assignment workflow', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('keeps quick authoring compact and persists advanced Guided generation controls', async () => {
+    vi.mocked(addAssignmentItem).mockResolvedValue({
+      ok: true,
+      value: {
+        ...item,
+        problem_count: 6,
+        difficulty_profile: 'beginner',
+        variant_policy: 'same_for_all',
+      },
+    });
+    renderApp('/app/classes/class-a/assignments/assignment-a');
+    const options = await screen.findByText('Generation options');
+    expect(screen.getByLabelText('Difficulty')).not.toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Add block to assignment' }),
+    ).toBeVisible();
+
+    fireEvent.change(screen.getByLabelText('Practice activity'), {
+      target: { value: 'integration.u_substitution.v1' },
+    });
+    fireEvent.click(options);
+    fireEvent.change(screen.getByLabelText('Difficulty'), {
+      target: { value: 'beginner' },
+    });
+    fireEvent.change(screen.getByLabelText('Variants'), {
+      target: { value: 'same_for_all' },
+    });
+    fireEvent.change(screen.getByLabelText('Problems'), {
+      target: { value: '6' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add block to assignment' }),
+    );
+
+    await waitFor(() =>
+      expect(addAssignmentItem).toHaveBeenCalledWith({
+        assignmentId: draft.id,
+        activityKey: 'integration.u_substitution.v1',
+        problemCount: 6,
+        difficultyProfile: 'beginner',
+        variantPolicy: 'same_for_all',
+      }),
+    );
+    expect(
+      within(screen.getByRole('region', { name: 'Practice blocks' })).getByRole(
+        'status',
+      ),
+    ).toHaveTextContent('1 block · 6 problems total');
+    const block = screen.getByRole('listitem');
+    expect(
+      within(block).getByText(/Beginner · Same for everyone/),
+    ).toBeVisible();
+    expect(screen.getByLabelText('Difficulty')).not.toBeVisible();
+  });
+
   it('retains four uniquely identified blocks through add, edit, reorder, and reload', async () => {
     const persistedItems: AssignmentItemSummary[] = [];
     const activityKeys: AssignmentItemSummary['activity_key'][] = [
@@ -444,6 +505,10 @@ describe('teacher assignment workflow', () => {
         position: persistedItems.length,
         activity_key: input.activityKey,
         problem_count: input.problemCount,
+        generation_spec_version: 1,
+        difficulty_profile: input.difficultyProfile ?? 'auto',
+        variant_policy: input.variantPolicy ?? 'individualized',
+        generation_seed: `93000000-0000-4000-8000-${String(persistedItems.length + 10).padStart(12, '0')}`,
       };
       persistedItems.push(next);
       return { ok: true, value: next };
@@ -459,6 +524,14 @@ describe('teacher assignment workflow', () => {
           ...existing,
           activity_key: changes.activityKey ?? existing.activity_key,
           problem_count: changes.problemCount ?? existing.problem_count,
+          generation_spec_version:
+            changes.difficultyProfile !== undefined ||
+            changes.variantPolicy !== undefined
+              ? 1
+              : existing.generation_spec_version,
+          difficulty_profile:
+            changes.difficultyProfile ?? existing.difficulty_profile,
+          variant_policy: changes.variantPolicy ?? existing.variant_policy,
           updated_at: '2026-09-24T00:02:00Z',
         };
         persistedItems[index] = updated;
@@ -533,21 +606,29 @@ describe('teacher assignment workflow', () => {
       assignmentId: draft.id,
       activityKey: activityKeys[0],
       problemCount: 5,
+      difficultyProfile: 'auto',
+      variantPolicy: 'individualized',
     });
     expect(addAssignmentItem).toHaveBeenNthCalledWith(2, {
       assignmentId: draft.id,
       activityKey: activityKeys[1],
       problemCount: 5,
+      difficultyProfile: 'auto',
+      variantPolicy: 'individualized',
     });
     expect(addAssignmentItem).toHaveBeenNthCalledWith(3, {
       assignmentId: draft.id,
       activityKey: activityKeys[2],
       problemCount: 5,
+      difficultyProfile: 'auto',
+      variantPolicy: 'individualized',
     });
     expect(addAssignmentItem).toHaveBeenNthCalledWith(4, {
       assignmentId: draft.id,
       activityKey: activityKeys[3],
       problemCount: 5,
+      difficultyProfile: 'auto',
+      variantPolicy: 'individualized',
     });
 
     let blocks = screen.getAllByRole('listitem');
@@ -630,6 +711,8 @@ describe('teacher assignment workflow', () => {
         assignmentId: draft.id,
         activityKey: 'integration.u_substitution.v1',
         problemCount: 10,
+        difficultyProfile: 'auto',
+        variantPolicy: 'individualized',
       }),
     );
     expect(
@@ -677,6 +760,8 @@ describe('teacher assignment workflow', () => {
       expect(updateAssignmentItem).toHaveBeenCalledWith(item.id, {
         activityKey: item.activity_key,
         problemCount: 10,
+        difficultyProfile: 'auto',
+        variantPolicy: 'individualized',
       }),
     );
     await waitFor(() =>

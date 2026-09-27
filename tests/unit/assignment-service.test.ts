@@ -39,6 +39,10 @@ const itemRow = {
   activity_contract_version: 1,
   activity_key: 'integration.basic_trig.v1',
   problem_count: 5,
+  generation_spec_version: 1,
+  difficulty_profile: 'auto',
+  variant_policy: 'individualized',
+  generation_seed: '93000000-0000-4000-8000-000000000001',
   created_at: '2026-09-24T00:00:00Z',
   updated_at: '2026-09-24T00:00:00Z',
 };
@@ -214,6 +218,9 @@ describe('assignment service boundaries', () => {
       activity_contract_version: 1,
       activity_key: 'integration.by_parts.v1',
       problem_count: 10,
+      generation_spec_version: 1,
+      difficulty_profile: 'auto',
+      variant_policy: 'individualized',
     });
     await expect(
       listAssignmentItems('assignment-a', client),
@@ -243,6 +250,25 @@ describe('assignment service boundaries', () => {
     ).resolves.toMatchObject({
       ok: false,
       error: { code: 'invalid_problem_count' },
+    });
+    expect(client.from).not.toHaveBeenCalled();
+  });
+
+  it('rejects difficulty profiles unsupported by the selected activity before mutation', async () => {
+    const client = clientMock();
+    await expect(
+      addAssignmentItem(
+        {
+          assignmentId: 'assignment-a',
+          activityKey: 'integration.basic_trig.v1',
+          problemCount: 5,
+          difficultyProfile: 'advanced',
+        },
+        client,
+      ),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'invalid_assignment_generation_spec' },
     });
     expect(client.from).not.toHaveBeenCalled();
   });

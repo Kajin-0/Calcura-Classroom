@@ -30,14 +30,17 @@ insert into public.assignments (id, class_id, title, due_at) values
   ('73000000-0000-4000-8000-000000000003', '63000000-0000-4000-8000-000000000001', 'Published with results', '2030-01-12T12:00:00Z'),
   ('73000000-0000-4000-8000-000000000004', '63000000-0000-4000-8000-000000000001', 'Archived without results', null),
   ('73000000-0000-4000-8000-000000000005', '63000000-0000-4000-8000-000000000002', 'Foreign assignment', null);
-insert into public.assignment_items (id, assignment_id, position, activity_contract_version, activity_key, problem_count) values
-  ('83000000-0000-4000-8000-000000000001', '73000000-0000-4000-8000-000000000001', 0, 1, 'integration.basic_trig.v1', 5),
-  ('83000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000002', 0, 1, 'integration.u_substitution.v1', 5),
-  ('83000000-0000-4000-8000-000000000003', '73000000-0000-4000-8000-000000000002', 1, 1, 'integration.by_parts.v1', 7),
-  ('83000000-0000-4000-8000-000000000004', '73000000-0000-4000-8000-000000000003', 0, 1, 'integration.inverse_trig.v1', 2),
-  ('83000000-0000-4000-8000-000000000005', '73000000-0000-4000-8000-000000000003', 1, 1, 'integration.partial_fractions.v1', 3),
-  ('83000000-0000-4000-8000-000000000006', '73000000-0000-4000-8000-000000000004', 0, 1, 'integration.basic_trig.v1', 4),
-  ('83000000-0000-4000-8000-000000000007', '73000000-0000-4000-8000-000000000005', 0, 1, 'integration.log_u_substitution.v1', 6);
+insert into public.assignment_items (
+  id, assignment_id, position, activity_contract_version, activity_key, problem_count,
+  generation_spec_version, difficulty_profile, variant_policy, generation_seed
+) values
+  ('83000000-0000-4000-8000-000000000001', '73000000-0000-4000-8000-000000000001', 0, 1, 'integration.basic_trig.v1', 5, default, default, default, default),
+  ('83000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000002', 0, 1, 'integration.u_substitution.v1', 5, default, default, default, default),
+  ('83000000-0000-4000-8000-000000000003', '73000000-0000-4000-8000-000000000002', 1, 1, 'integration.by_parts.v1', 7, default, default, default, default),
+  ('83000000-0000-4000-8000-000000000004', '73000000-0000-4000-8000-000000000003', 0, 1, 'integration.inverse_trig.v1', 2, 1, 'intermediate', 'same_for_all', '93000000-0000-4000-8000-000000000004'),
+  ('83000000-0000-4000-8000-000000000005', '73000000-0000-4000-8000-000000000003', 1, 1, 'integration.partial_fractions.v1', 3, default, default, default, default),
+  ('83000000-0000-4000-8000-000000000006', '73000000-0000-4000-8000-000000000004', 0, 1, 'integration.basic_trig.v1', 4, default, default, default, default),
+  ('83000000-0000-4000-8000-000000000007', '73000000-0000-4000-8000-000000000005', 0, 1, 'integration.log_u_substitution.v1', 6, default, default, default, default);
 
 update public.assignments set status = 'published', published_at = '2026-09-01T12:00:00Z'
 where id in ('73000000-0000-4000-8000-000000000002', '73000000-0000-4000-8000-000000000003', '73000000-0000-4000-8000-000000000005');
@@ -78,6 +81,14 @@ select extensions.ok(
   'all lifecycle RPCs use SECURITY DEFINER with an empty search_path'
 );
 select extensions.ok(not has_table_privilege('authenticated', 'public.assignments', 'delete'), 'lifecycle still has no direct assignment DELETE grant');
+select extensions.ok(
+  has_column_privilege('authenticated', 'public.assignment_items', 'generation_spec_version', 'select')
+    and has_column_privilege('authenticated', 'public.assignment_items', 'difficulty_profile', 'insert')
+    and has_column_privilege('authenticated', 'public.assignment_items', 'variant_policy', 'update')
+    and not has_column_privilege('authenticated', 'public.assignment_items', 'generation_seed', 'insert')
+    and not has_column_privilege('authenticated', 'public.assignment_items', 'generation_seed', 'update'),
+  'clients can read and configure bounded intent but cannot choose or change the seed'
+);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '13000000-0000-4000-8000-000000000001', true);
@@ -86,6 +97,47 @@ select set_config('request.jwt.claims', '{"sub":"13000000-0000-4000-8000-0000000
 select extensions.is(public.get_assignment_delete_status('73000000-0000-4000-8000-000000000001'), false, 'draft with no results is eligible for deletion');
 select extensions.is(public.get_assignment_delete_status('73000000-0000-4000-8000-000000000002'), false, 'published assignment without results is eligible for deletion');
 select extensions.is(public.get_assignment_delete_status('73000000-0000-4000-8000-000000000003'), true, 'result-bearing assignment is not eligible for deletion');
+select extensions.throws_ok(
+  $$insert into public.assignment_items (assignment_id, position, activity_key, problem_count, difficulty_profile)
+    values ('73000000-0000-4000-8000-000000000001', 1, 'integration.basic_trig.v1', 2, 'advanced')$$,
+  '23514',
+  'new row for relation "assignment_items" violates check constraint "assignment_items_generation_spec_shape_check"',
+  'database rejects an activity/difficulty combination not supported by Calcura'
+);
+insert into public.assignment_items (
+  assignment_id, position, activity_key, problem_count,
+  difficulty_profile, variant_policy
+) values (
+  '73000000-0000-4000-8000-000000000001',
+  1, 'integration.basic_trig.v1', 2, 'beginner', 'same_for_all'
+);
+select extensions.is(
+  (select generation_spec_version::integer from public.assignment_items where assignment_id = '73000000-0000-4000-8000-000000000001' and position = 1),
+  1,
+  'new teacher blocks receive generation spec version 1 by default'
+);
+select extensions.ok(
+  (select generation_seed is not null from public.assignment_items where assignment_id = '73000000-0000-4000-8000-000000000001' and position = 1),
+  'generation seed is assigned by the database'
+);
+select extensions.throws_ok(
+  $$update public.assignment_items set difficulty_profile = 'advanced' where assignment_id = '73000000-0000-4000-8000-000000000001' and position = 1$$,
+  '23514',
+  'new row for relation "assignment_items" violates check constraint "assignment_items_generation_spec_shape_check"',
+  'draft mutation cannot store an unsupported difficulty profile'
+);
+insert into public.assignment_items (
+  assignment_id, position, activity_key, problem_count,
+  difficulty_profile, variant_policy
+) values (
+  '73000000-0000-4000-8000-000000000001',
+  2, 'integration.basic_trig.v1', 2, 'intermediate', 'individualized'
+);
+select extensions.is(
+  (select difficulty_profile from public.assignment_items where assignment_id = '73000000-0000-4000-8000-000000000001' and position = 2),
+  'intermediate',
+  'database accepts Basic Trig intermediate because Calcura supports it'
+);
 
 select set_config('test.analytics_before', public.get_assignment_analytics('73000000-0000-4000-8000-000000000003')::text, true);
 select set_config('test.copy_id', public.duplicate_assignment('73000000-0000-4000-8000-000000000003')::text, true);
@@ -100,6 +152,20 @@ select extensions.is(
   (select pg_catalog.array_agg(activity_key || ':' || problem_count::text order by position) from public.assignment_items where assignment_id = current_setting('test.copy_id')::uuid),
   array['integration.inverse_trig.v1:2', 'integration.partial_fractions.v1:3'],
   'duplicate preserves activity configuration and problem counts'
+);
+select extensions.is(
+  (select pg_catalog.array_agg(difficulty_profile || ':' || variant_policy order by position)
+   from public.assignment_items where assignment_id = current_setting('test.copy_id')::uuid),
+  array['intermediate:same_for_all', 'auto:individualized'],
+  'duplicate copies validated generation intent'
+);
+select extensions.ok(
+  (select generation_spec_version = 1
+      and generation_seed is not null
+      and generation_seed <> '93000000-0000-4000-8000-000000000004'::uuid
+   from public.assignment_items
+   where assignment_id = current_setting('test.copy_id')::uuid and position = 0),
+  'duplicate receives a fresh generation seed instead of repeating the source seed'
 );
 select extensions.is(
   (select count(*)::integer from public.assignment_items as source
@@ -141,6 +207,8 @@ select extensions.is((select title from public.assignments where id = '73000000-
 select extensions.is((select due_at from public.assignments where id = '73000000-0000-4000-8000-000000000003'), '2030-02-01T12:00:00Z'::timestamptz, 'authorized teacher may update a published due date');
 select extensions.lives_ok($$update public.assignment_items set problem_count = 4 where id = '83000000-0000-4000-8000-000000000004'$$, 'published structural update is safely rejected by RLS');
 select extensions.is((select problem_count::integer from public.assignment_items where id = '83000000-0000-4000-8000-000000000004'), 2, 'published problem count remains immutable');
+select extensions.lives_ok($$update public.assignment_items set difficulty_profile = 'advanced' where id = '83000000-0000-4000-8000-000000000004'$$, 'published generation-profile update is safely rejected by RLS');
+select extensions.is((select difficulty_profile from public.assignment_items where id = '83000000-0000-4000-8000-000000000004'), 'intermediate', 'published generation intent remains immutable');
 
 -- The eligibility check can become stale. A result inserted after it is still
 -- protected by the delete RPC's lock and second server-side check.
