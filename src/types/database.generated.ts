@@ -428,6 +428,10 @@ export type Database = {
         }[];
       };
       get_class_join_code: { Args: { p_class_id: string }; Returns: string };
+      get_workspace_dashboard: {
+        Args: { p_workspace_id: string };
+        Returns: Json;
+      };
       get_workspace_entitlement: {
         Args: { p_workspace_id: string };
         Returns: {

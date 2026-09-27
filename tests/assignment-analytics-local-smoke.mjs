@@ -370,6 +370,43 @@ async function main() {
   assert.equal(thirdPosition.surrenders, 1);
   assert.equal(actual.students.length, 3);
 
+  // Phase 8.5 workspace overview uses the same terminal-result arithmetic
+  // through one read-only, teacher-authorized Data API request.
+  const dashboard = unwrap(
+    await clients.teacher.rpc('get_workspace_dashboard', {
+      p_workspace_id: workspaceId,
+    }),
+    'teacher workspace dashboard',
+  );
+  assert.equal(dashboard.summary.active_classes, 1);
+  assert.equal(dashboard.summary.students, summary.studentsEnrolled);
+  assert.equal(dashboard.summary.active_assignments, 1);
+  assert.equal(
+    dashboard.summary.student_assignment_opportunities,
+    summary.studentsEnrolled,
+  );
+  assert.equal(dashboard.summary.students_completed, summary.studentsCompleted);
+  close(
+    dashboard.summary.completion_rate,
+    summary.completionRate,
+    'dashboard completion rate',
+  );
+  assert.equal(dashboard.summary.problems_completed, summary.completed);
+  assert.equal(dashboard.summary.problems_correct, summary.correct);
+  close(dashboard.summary.accuracy, summary.accuracy, 'dashboard accuracy');
+  assert.equal(dashboard.classes.length, 1);
+  assert.equal(dashboard.assignments.length, 1);
+  assert.equal(dashboard.assignments[0].assignment_id, assignment.id);
+  assert.equal(dashboard.activities.length, 2);
+  assert.ok(!JSON.stringify(dashboard).includes(emails.studentA));
+  const studentDashboard = await clients.studentA.rpc(
+    'get_workspace_dashboard',
+    {
+      p_workspace_id: workspaceId,
+    },
+  );
+  assert.equal(studentDashboard.error?.code, '42501');
+
   globalThis.console.log(
     JSON.stringify(
       {
@@ -378,6 +415,7 @@ async function main() {
         activeEnrollees: summary.studentsEnrolled,
         expectedSummary: summary,
         actualSummary,
+        dashboardSummary: dashboard.summary,
         exactAssertions: 'PASS',
       },
       null,
