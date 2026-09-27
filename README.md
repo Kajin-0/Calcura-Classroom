@@ -1,6 +1,6 @@
 # Calcura Classroom
 
-Calcura Classroom is the teacher and institutional control plane for Calcura. Phases 0–7 are landed; Phase 8 adds workspace-scoped plan and capability resolution without billing. Teachers can publish versioned practice-family assignments, review completion and basic analytics, and safely edit, duplicate, or delete eligible assignments. Students solve through Calcura, which remains the only mathematics engine and stays free. These features require the shared Classroom schema; it has not been deployed to the hosted Supabase project, and the Calcura student feature gate remains disabled by default.
+Calcura Classroom is the teacher and institutional control plane for Calcura. Phases 0–8 are landed; Phase 8.5 adds a workspace dashboard over existing assignment results, without billing. Teachers can publish versioned practice-family assignments, review completion and basic analytics, and safely edit, duplicate, or delete eligible assignments. Students solve through Calcura, which remains the only mathematics engine and stays free. These features require the shared Classroom schema; it has not been deployed to the hosted Supabase project, and the Calcura student feature gate remains disabled by default.
 
 ## Repository responsibilities
 
@@ -78,4 +78,4 @@ Every exposed Supabase table requires explicit grants and RLS. A publishable key
 
 ## Roadmap
 
-The planned order is recorded in [Roadmap](docs/ROADMAP.md). Phase 6 analytics are limited to server-aggregated assignment completion/performance derived from existing Phase-5 result rows. Rich learning events, step-level telemetry, recommendations, billing, entitlements, Team, School, and University remain deferred.
+The planned order is recorded in [Roadmap](docs/ROADMAP.md). Dashboard completion is completed student-assignment pairs divided by all active student-assignment pairs. Accuracy is correct terminal results divided by all terminal results; surrendered slots complete an assignment but are not correct, and empty denominators display as unavailable rather than 0%. The dashboard uses one teacher-authorized, read-only workspace aggregate RPC; no new student telemetry or generated mathematics is stored. Rich learning events, step-level telemetry, recommendations, billing, Team, School, and University remain deferred.

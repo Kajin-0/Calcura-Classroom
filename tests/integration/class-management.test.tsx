@@ -64,7 +64,7 @@ const signedInSession = {
   user: { id: 'teacher-a', email: 'teacher@example.com' },
 } as Session;
 
-function renderApp(path = '/app') {
+function renderApp(path = '/app/classes') {
   return render(
     <AuthSessionContext.Provider
       value={{

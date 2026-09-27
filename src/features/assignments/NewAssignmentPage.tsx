@@ -158,11 +158,11 @@ export function NewAssignmentPage() {
   if (unavailable || !classItem) {
     return (
       <section className="workspace-content unavailable-state">
-        <Link className="back-link" to="/app">
+        <Link className="back-link" to="/app/classes">
           ← Classes
         </Link>
         <h1>This class is unavailable.</h1>
-        <Link className="inline-link" to="/app">
+        <Link className="inline-link" to="/app/classes">
           Back to classes
         </Link>
         <button

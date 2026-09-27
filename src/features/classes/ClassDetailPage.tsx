@@ -229,7 +229,7 @@ function ClassDetailContent({ classId }: { classId: string }) {
   if (unavailable || !classItem) {
     return (
       <section className="workspace-content unavailable-state">
-        <Link className="back-link" to="/app">
+        <Link className="back-link" to="/app/classes">
           ← Classes
         </Link>
         <h1>This class is unavailable.</h1>
@@ -245,7 +245,7 @@ function ClassDetailContent({ classId }: { classId: string }) {
       className="workspace-content class-detail-page"
       aria-labelledby="class-title"
     >
-      <Link className="back-link" to="/app">
+      <Link className="back-link" to="/app/classes">
         ← Classes
       </Link>
       <div className="detail-heading">

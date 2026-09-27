@@ -4,6 +4,7 @@ import { SignInPage } from '../features/auth/SignInPage';
 import { WorkspaceProvider } from '../features/workspaces/WorkspaceProvider';
 import { ClassDetailPage } from '../features/classes/ClassDetailPage';
 import { ClassListPage } from '../features/classes/ClassListPage';
+import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { AssignmentBuilderPage } from '../features/assignments/AssignmentPages';
 import { NewAssignmentPage } from '../features/assignments/NewAssignmentPage';
 import { TeacherLayout } from './TeacherLayout';
@@ -16,7 +17,8 @@ export function AppRoutes() {
       <Route element={<RequireSession />}>
         <Route element={<WorkspaceProvider />}>
           <Route path="/app" element={<TeacherLayout />}>
-            <Route index element={<ClassListPage />} />
+            <Route index element={<DashboardPage />} />
+            <Route path="classes" element={<ClassListPage />} />
             <Route
               path="classes/:classId/assignments/new"
               element={<NewAssignmentPage />}

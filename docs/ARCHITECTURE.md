@@ -67,6 +67,8 @@ Classroom teacher analytics
 
 Calcura's local performance implementation is not copied into Classroom. Phase 6 implements only assignment-scoped completion, accuracy, attempts/time, surrender, practice-block, slot-position, and active-enrollee summaries from the existing terminal-result contract. Skill mastery, trend buckets, focus recommendations, first-attempt analytics, and export semantics remain future concepts requiring separate definitions and privacy review.
 
+Phase 8.5's `get_workspace_dashboard(workspace_id)` performs a single read-only, owner/admin/educator-authorized aggregation over active classes, active enrollments, published assignments, and their terminal results. It returns summary, class, assignment, and activity-family rows, without student identity or raw results. Workspace completion counts completed student-assignment pairs; student enrollment in two classes is one unique student in the headline count. Missing results are not incorrect answers, and empty denominators are null. The teacher client validates this response before rendering and does not fetch all result rows or issue per-class analytics calls.
+
 ## Security boundaries
 
 - The Vite application receives only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.

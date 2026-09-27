@@ -15,13 +15,13 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
   test.setTimeout(120_000);
   const now = '2026-09-24T12:00:00.000Z';
   const workspace = {
-    id: 'workspace-playwright',
+    id: '22222222-2222-4222-8222-222222222222',
     workspace_type: 'personal',
     name: 'Personal workspace',
     status: 'active',
   };
   const classItem = {
-    id: 'class-playwright',
+    id: '11111111-1111-4111-8111-111111111111',
     workspace_id: workspace.id,
     name: 'Calculus I',
     status: 'active',
@@ -120,6 +120,45 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
             ],
           },
         ],
+      });
+      return;
+    }
+
+    if (path.endsWith('/rpc/get_workspace_dashboard')) {
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        json: {
+          schema_version: 1,
+          summary: {
+            active_classes: 1,
+            students: 0,
+            active_assignments: 0,
+            student_assignment_opportunities: 0,
+            students_completed: 0,
+            completion_rate: null,
+            problems_completed: 0,
+            problems_correct: 0,
+            accuracy: null,
+          },
+          classes: [
+            {
+              class_id: classItem.id,
+              name: classItem.name,
+              students_enrolled: 0,
+              active_assignments: 0,
+              student_assignment_opportunities: 0,
+              students_completed: 0,
+              completion_rate: null,
+              problems_completed: 0,
+              problems_correct: 0,
+              accuracy: null,
+              last_activity_at: null,
+            },
+          ],
+          assignments: [],
+          activities: [],
+        },
       });
       return;
     }
@@ -480,7 +519,7 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
 
   await page.goto('/app');
   await expect(page.getByText('Plan · Teacher Free')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Classes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   await page.getByRole('link', { name: /Calculus I/ }).click();
   await expect(page.getByRole('heading', { name: 'Calculus I' })).toBeVisible();
   await page.getByRole('link', { name: 'New assignment' }).click();

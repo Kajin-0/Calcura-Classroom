@@ -1240,7 +1240,7 @@ export function AssignmentBuilderPage() {
     return (
       <section className="workspace-content unavailable-state">
         <h1>This assignment is unavailable.</h1>
-        <Link className="back-link" to="/app">
+        <Link className="back-link" to="/app/classes">
           Back to classes
         </Link>
         <button
