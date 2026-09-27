@@ -266,6 +266,47 @@ export type Database = {
           },
         ];
       };
+      workspace_entitlements: {
+        Row: {
+          created_at: string;
+          effective_at: string;
+          expires_at: string | null;
+          plan: string;
+          source: string;
+          status: string;
+          updated_at: string;
+          workspace_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          effective_at?: string;
+          expires_at?: string | null;
+          plan: string;
+          source?: string;
+          status?: string;
+          updated_at?: string;
+          workspace_id: string;
+        };
+        Update: {
+          created_at?: string;
+          effective_at?: string;
+          expires_at?: string | null;
+          plan?: string;
+          source?: string;
+          status?: string;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'workspace_entitlements_workspace_id_fkey';
+            columns: ['workspace_id'];
+            isOneToOne: true;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       workspace_members: {
         Row: {
           created_at: string;
@@ -387,6 +428,18 @@ export type Database = {
         }[];
       };
       get_class_join_code: { Args: { p_class_id: string }; Returns: string };
+      get_workspace_entitlement: {
+        Args: { p_workspace_id: string };
+        Returns: {
+          capabilities: string[];
+          effective_at: string;
+          expires_at: string;
+          plan: string;
+          source: string;
+          status: string;
+          workspace_id: string;
+        }[];
+      };
       join_class_by_code: {
         Args: { p_code: string };
         Returns: {
@@ -446,6 +499,10 @@ export type Database = {
       reorder_assignment_items: {
         Args: { p_assignment_id: string; p_item_ids: string[] };
         Returns: undefined;
+      };
+      workspace_has_capability: {
+        Args: { p_capability: string; p_workspace_id: string };
+        Returns: boolean;
       };
     };
     Enums: {

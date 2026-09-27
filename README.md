@@ -1,6 +1,6 @@
 # Calcura Classroom
 
-Calcura Classroom is the teacher and institutional control plane for Calcura. **Phases 0–6 are complete locally**: engineering foundation, workspace/class RLS, teacher class management, assignment authoring, student Calcura integration, terminal assignment-result reporting, and basic teacher analytics. Teachers can publish versioned practice-family assignments and review completion, accuracy, attempts, time, surrenders, practice-block results, problem positions, and enrolled-student results. Students solve through Calcura, which remains the only mathematics engine. These features require the shared Classroom schema; it has not been deployed to the hosted Supabase project, and the Calcura student feature gate remains disabled by default.
+Calcura Classroom is the teacher and institutional control plane for Calcura. Phases 0–7 are landed; Phase 8 adds workspace-scoped plan and capability resolution without billing. Teachers can publish versioned practice-family assignments, review completion and basic analytics, and safely edit, duplicate, or delete eligible assignments. Students solve through Calcura, which remains the only mathematics engine and stays free. These features require the shared Classroom schema; it has not been deployed to the hosted Supabase project, and the Calcura student feature gate remains disabled by default.
 
 ## Repository responsibilities
 
@@ -72,7 +72,7 @@ These commands target the local stack only. Do not run linked resets, pushes, or
 
 ## Security and architecture
 
-See [AGENTS.md](AGENTS.md) for mandatory engineering rules, [Auth](docs/AUTH.md) for the OTP contract, [Architecture](docs/ARCHITECTURE.md) for ownership boundaries, and [Data model](docs/DATA_MODEL.md) for the implemented local schema and future conceptual entities.
+See [AGENTS.md](AGENTS.md) for mandatory engineering rules, [Auth](docs/AUTH.md) for the OTP contract, [Architecture](docs/ARCHITECTURE.md) for ownership boundaries, [Data model](docs/DATA_MODEL.md) for the implemented local schema, and [Entitlements](docs/ENTITLEMENTS.md) for workspace plan/capability resolution.
 
 Every exposed Supabase table requires explicit grants and RLS. A publishable key is not an authorization rule. Workspace staff access comes from server-side membership; student reads and terminal result submissions are class-enrollment scoped. Result writes are RPC-only; authenticated clients have select-only access to their own result rows.
 
