@@ -25,6 +25,7 @@ export function TeacherLayout() {
             Dashboard
           </NavLink>
           <NavLink to="/app/classes">Classes</NavLink>
+          <NavLink to="/app/billing">Billing</NavLink>
         </nav>
         <div className="account-actions">
           {session?.user.email && (

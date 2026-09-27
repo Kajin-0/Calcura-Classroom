@@ -7,6 +7,7 @@ import { ClassListPage } from '../features/classes/ClassListPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { AssignmentBuilderPage } from '../features/assignments/AssignmentPages';
 import { NewAssignmentPage } from '../features/assignments/NewAssignmentPage';
+import { BillingPage } from '../features/billing/BillingPage';
 import { TeacherLayout } from './TeacherLayout';
 
 export function AppRoutes() {
@@ -18,6 +19,7 @@ export function AppRoutes() {
         <Route element={<WorkspaceProvider />}>
           <Route path="/app" element={<TeacherLayout />}>
             <Route index element={<DashboardPage />} />
+            <Route path="billing" element={<BillingPage />} />
             <Route path="classes" element={<ClassListPage />} />
             <Route
               path="classes/:classId/assignments/new"
