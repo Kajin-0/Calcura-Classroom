@@ -28,6 +28,7 @@
     "test:assignment-analytics:local": "node tests/assignment-analytics-local-smoke.mjs",
     "test:assignment-builder:local": "node tests/assignment-builder-local-smoke.mjs",
     "test:assignment-lifecycle:local": "node tests/assignment-lifecycle-local-smoke.mjs",
+    "test:entitlements:local": "node tests/workspace-entitlements-local-smoke.mjs",
     "types:db": "supabase gen types --local > src/types/database.generated.ts && prettier --write src/types/database.generated.ts"
   },
   "dependencies": {

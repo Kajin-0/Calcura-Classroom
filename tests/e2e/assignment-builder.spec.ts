@@ -100,6 +100,30 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
       return;
     }
 
+    if (path.endsWith('/rpc/get_workspace_entitlement')) {
+      const body = request.postDataJSON() as { p_workspace_id: string };
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        json: [
+          {
+            workspace_id: body.p_workspace_id,
+            plan: 'teacher_free',
+            status: 'active',
+            source: 'default',
+            effective_at: now,
+            expires_at: null,
+            capabilities: [
+              'basic_classroom',
+              'basic_assignments',
+              'basic_analytics',
+            ],
+          },
+        ],
+      });
+      return;
+    }
+
     if (path.endsWith('/rpc/get_class_join_code')) {
       await route.fulfill({
         status: 200,
@@ -455,6 +479,7 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
   });
 
   await page.goto('/app');
+  await expect(page.getByText('Plan · Teacher Free')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Classes' })).toBeVisible();
   await page.getByRole('link', { name: /Calculus I/ }).click();
   await expect(page.getByRole('heading', { name: 'Calculus I' })).toBeVisible();
