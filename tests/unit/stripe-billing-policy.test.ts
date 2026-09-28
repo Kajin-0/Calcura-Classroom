@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  billingIntervalForPrice,
   canManageWorkspaceBilling,
   decideEntitlement,
   parseBillingInterval,
@@ -18,6 +19,22 @@ const now = new Date('2026-09-27T12:00:00.000Z');
 const periodEnd = new Date('2026-10-27T12:00:00.000Z');
 
 describe('Stripe billing policy', () => {
+  it('maps only the configured monthly and annual Prices to plan intervals', () => {
+    expect(
+      billingIntervalForPrice('price_monthly', 'price_monthly', 'price_annual'),
+    ).toBe('monthly');
+    expect(
+      billingIntervalForPrice('price_annual', 'price_monthly', 'price_annual'),
+    ).toBe('annual');
+    expect(
+      billingIntervalForPrice(
+        'price_unconfigured',
+        'price_monthly',
+        'price_annual',
+      ),
+    ).toBeNull();
+  });
+
   it('accepts only the two bounded billing intervals and valid workspace IDs', () => {
     expect(parseBillingInterval('monthly')).toBe('monthly');
     expect(parseBillingInterval('annual')).toBe('annual');

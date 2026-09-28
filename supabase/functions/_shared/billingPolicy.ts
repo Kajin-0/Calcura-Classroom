@@ -105,6 +105,16 @@ export function parseBillingInterval(value: unknown): BillingInterval | null {
   return value === 'monthly' || value === 'annual' ? value : null;
 }
 
+export function billingIntervalForPrice(
+  priceId: string,
+  monthlyPriceId: string,
+  annualPriceId: string,
+): BillingInterval | null {
+  if (priceId === monthlyPriceId) return 'monthly';
+  if (priceId === annualPriceId) return 'annual';
+  return null;
+}
+
 export function parseWorkspaceId(value: unknown): string | null {
   if (
     typeof value !== 'string' ||

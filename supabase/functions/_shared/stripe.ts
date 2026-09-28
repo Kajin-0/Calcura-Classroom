@@ -1,5 +1,6 @@
 import Stripe from 'npm:stripe@22.4.0';
 import {
+  billingIntervalForPrice,
   parseStripeBillingConfiguration,
   stripePriceMatches,
   stripeProductMatches,
@@ -63,10 +64,12 @@ export async function verifyConfiguredPrice(
 export function intervalForConfiguredPrice(
   priceId: string,
 ): BillingInterval | null {
-  const ids = configuredPriceIds();
-  if (priceId === ids.monthly) return 'monthly';
-  if (priceId === ids.annual) return 'annual';
-  return null;
+  const configuration = stripeConfiguration();
+  return billingIntervalForPrice(
+    priceId,
+    configuration.monthlyPriceId,
+    configuration.annualPriceId,
+  );
 }
 
 function stripeConfiguration(): StripeBillingConfiguration {
