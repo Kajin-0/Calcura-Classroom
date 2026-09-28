@@ -2,6 +2,8 @@ import {
   canManageWorkspaceBilling,
   parseBillingInterval,
   parseWorkspaceId,
+  stripeCheckoutSessionMatchesMode,
+  stripeObjectMatchesMode,
 } from '../_shared/billingPolicy.ts';
 import {
   jsonResponse,
@@ -18,7 +20,8 @@ import {
 } from '../_shared/supabase.ts';
 import {
   appReturnUrl,
-  getTestStripe,
+  configuredStripeMode,
+  getStripe,
   stripeObjectId,
   verifyConfiguredPrice,
 } from '../_shared/stripe.ts';
@@ -40,6 +43,12 @@ runtime.serve(async (request) => {
     }
 
     const { userId } = await authenticateRequest(request);
+    const mode = configuredStripeMode();
+    const stripe = getStripe();
+    const successUrl = appReturnUrl(
+      '/app/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}',
+    );
+    const cancelUrl = appReturnUrl('/app/billing?checkout=cancelled');
     const admin = createAdminClient();
     const role = await workspaceBillingRole(admin, workspaceId, userId);
     if (!canManageWorkspaceBilling(role)) {
@@ -79,7 +88,6 @@ runtime.serve(async (request) => {
       );
     }
 
-    const stripe = getTestStripe();
     if (reservation.reservation_state === 'existing_session') {
       const sessionId =
         typeof reservation.checkout_session_id === 'string'
@@ -88,7 +96,7 @@ runtime.serve(async (request) => {
       if (!sessionId || !attemptId) throw new Error('invalid_saved_checkout');
       const savedSession = await stripe.checkout.sessions.retrieve(sessionId);
       if (
-        savedSession.livemode !== false ||
+        !stripeCheckoutSessionMatchesMode(savedSession, mode) ||
         savedSession.mode !== 'subscription'
       ) {
         throw new Error('invalid_saved_checkout');
@@ -132,8 +140,9 @@ runtime.serve(async (request) => {
         { metadata: { workspace_id: workspaceId } },
         { idempotencyKey: `workspace-customer-${workspaceId}` },
       );
-      if (customer.livemode !== false)
-        throw new Error('stripe_live_mode_rejected');
+      if (!stripeObjectMatchesMode(customer, mode)) {
+        throw new Error('stripe_customer_mode_mismatch');
+      }
       customerId = customer.id;
       const { error: customerError } = await admin.rpc(
         'save_workspace_stripe_customer',
@@ -145,6 +154,11 @@ runtime.serve(async (request) => {
         },
       );
       if (customerError) throw customerError;
+    } else {
+      const customer = await stripe.customers.retrieve(customerId);
+      if (!stripeObjectMatchesMode(customer, mode)) {
+        throw new Error('stripe_customer_mode_mismatch');
+      }
     }
 
     const session = await stripe.checkout.sessions.create(
@@ -163,14 +177,16 @@ runtime.serve(async (request) => {
             billing_interval: interval,
           },
         },
-        success_url: appReturnUrl(
-          '/app/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}',
-        ),
-        cancel_url: appReturnUrl('/app/billing?checkout=cancelled'),
+        success_url: successUrl,
+        cancel_url: cancelUrl,
       },
       { idempotencyKey: `workspace-checkout-${attemptId}` },
     );
-    if (session.livemode !== false || !session.url || !session.expires_at) {
+    if (
+      !stripeCheckoutSessionMatchesMode(session, mode) ||
+      !session.url ||
+      !session.expires_at
+    ) {
       throw new Error('invalid_stripe_checkout_session');
     }
 

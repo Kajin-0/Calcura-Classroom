@@ -1,21 +1,10 @@
 import { requiredEnv } from './runtime.ts';
+import { parseTrustedAppOrigin } from './appOrigin.ts';
 
 const ALLOWED_HEADERS = 'authorization, apikey, content-type, x-client-info';
 
 function appOrigin(): string {
-  const value = requiredEnv('APP_ORIGIN');
-  const parsed = new URL(value);
-  if (
-    parsed.origin !== value.replace(/\/$/, '') ||
-    (parsed.protocol !== 'https:' &&
-      parsed.hostname !== 'localhost' &&
-      parsed.hostname !== '127.0.0.1')
-  ) {
-    throw new Error(
-      'APP_ORIGIN must be a valid HTTPS or local development origin.',
-    );
-  }
-  return parsed.origin;
+  return parseTrustedAppOrigin(requiredEnv('APP_ORIGIN'));
 }
 
 export function corsHeaders(request: Request): Headers {

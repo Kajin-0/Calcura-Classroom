@@ -1,6 +1,7 @@
 import {
   canManageWorkspaceBilling,
   parseWorkspaceId,
+  stripeObjectMatchesMode,
 } from '../_shared/billingPolicy.ts';
 import {
   jsonResponse,
@@ -14,7 +15,11 @@ import {
   createAdminClient,
   workspaceBillingRole,
 } from '../_shared/supabase.ts';
-import { appReturnUrl, getTestStripe } from '../_shared/stripe.ts';
+import {
+  appReturnUrl,
+  configuredStripeMode,
+  getStripe,
+} from '../_shared/stripe.ts';
 
 runtime.serve(async (request) => {
   if (request.method === 'OPTIONS') return optionsResponse(request);
@@ -47,12 +52,19 @@ runtime.serve(async (request) => {
       return jsonResponse(request, { error: 'billing_not_available' }, 409);
     }
 
-    const stripe = getTestStripe();
+    const mode = configuredStripeMode();
+    const stripe = getStripe();
+    const customer = await stripe.customers.retrieve(
+      billing.stripe_customer_id,
+    );
+    if (!stripeObjectMatchesMode(customer, mode)) {
+      throw new Error('stripe_customer_mode_mismatch');
+    }
     const session = await stripe.billingPortal.sessions.create({
       customer: billing.stripe_customer_id,
       return_url: appReturnUrl('/app/billing'),
     });
-    if (session.livemode !== false)
+    if (!stripeObjectMatchesMode(session, mode))
       throw new Error('stripe_live_mode_rejected');
     return jsonResponse(request, { portal_url: session.url });
   } catch (error) {

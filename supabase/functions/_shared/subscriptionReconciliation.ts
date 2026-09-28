@@ -1,5 +1,10 @@
-import { isSubscriptionStatus, type BillingInterval } from './billingPolicy.ts';
+import {
+  isSubscriptionStatus,
+  stripeObjectMatchesMode,
+  type BillingInterval,
+} from './billingPolicy.ts';
 import { intervalForConfiguredPrice, verifyConfiguredPrice } from './stripe.ts';
+import { configuredStripeMode } from './stripe.ts';
 import type { DbClient } from './supabase.ts';
 import type Stripe from 'npm:stripe@22.4.0';
 
@@ -39,12 +44,13 @@ export async function applyCanonicalSubscription(input: {
 }): Promise<string> {
   const { admin, stripe, workspaceId, subscription, eventId, eventType } =
     input;
+  const mode = configuredStripeMode();
   const subscriptionId = idOf(subscription.id);
   const customerId = idOf(subscription.customer);
   if (
     !subscriptionId ||
     !customerId ||
-    (subscription.livemode !== undefined && subscription.livemode !== false)
+    !stripeObjectMatchesMode(subscription, mode)
   ) {
     throw new Error('invalid_canonical_subscription');
   }

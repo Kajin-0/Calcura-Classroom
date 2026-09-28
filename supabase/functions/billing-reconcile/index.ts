@@ -16,7 +16,7 @@ import {
   createAdminClient,
   workspaceBillingRole,
 } from '../_shared/supabase.ts';
-import { getTestStripe } from '../_shared/stripe.ts';
+import { getStripe } from '../_shared/stripe.ts';
 
 runtime.serve(async (request) => {
   if (request.method === 'OPTIONS') return optionsResponse(request);
@@ -50,7 +50,7 @@ runtime.serve(async (request) => {
       return jsonResponse(request, { result: 'no_subscription' });
     }
 
-    const stripe = getTestStripe();
+    const stripe = getStripe();
     let subscription: Record<string, unknown>;
     if (typeof billing.stripe_subscription_id === 'string') {
       subscription = await stripe.subscriptions

@@ -1,10 +1,14 @@
-import { parseWorkspaceId } from '../_shared/billingPolicy.ts';
+import {
+  parseWorkspaceId,
+  stripeObjectMatchesMode,
+  type StripeMode,
+} from '../_shared/billingPolicy.ts';
 import { logBillingEvent } from '../_shared/http.ts';
 import { requiredEnv, runtime } from '../_shared/runtime.ts';
 import { createAdminClient } from '../_shared/supabase.ts';
 import { applyCanonicalSubscription } from '../_shared/subscriptionReconciliation.ts';
 import { verifyStripeWebhookEvent } from '../_shared/verifyWebhook.ts';
-import { getTestStripe } from '../_shared/stripe.ts';
+import { configuredStripeMode, getStripe } from '../_shared/stripe.ts';
 import Stripe from 'npm:stripe@22.4.0';
 
 type UnknownRecord = Record<string, unknown>;
@@ -74,11 +78,22 @@ runtime.serve(async (request) => {
 
   const rawBody = await request.text();
   const signature = request.headers.get('stripe-signature');
+  if (!signature)
+    return new Response('Invalid Stripe signature', { status: 400 });
+
+  let stripe: Stripe;
+  let mode: StripeMode;
+  let webhookSecret: string;
+  try {
+    mode = configuredStripeMode();
+    stripe = getStripe();
+    webhookSecret = requiredEnv('STRIPE_WEBHOOK_SECRET');
+  } catch {
+    return new Response('Stripe webhook is not configured', { status: 503 });
+  }
 
   let event: Stripe.Event;
   try {
-    const stripe = getTestStripe();
-    const webhookSecret = requiredEnv('STRIPE_WEBHOOK_SECRET');
     event = await verifyStripeWebhookEvent(
       rawBody,
       signature,
@@ -96,8 +111,10 @@ runtime.serve(async (request) => {
     return new Response('Invalid Stripe signature', { status: 400 });
   }
 
-  if (event.livemode !== false) {
-    return new Response('Live Stripe events are not accepted', { status: 400 });
+  if (!stripeObjectMatchesMode(event, mode)) {
+    return new Response('Stripe event mode does not match deployment mode', {
+      status: 400,
+    });
   }
 
   try {
@@ -133,7 +150,6 @@ runtime.serve(async (request) => {
       return Response.json({ received: true, result });
     }
 
-    const stripe = getTestStripe();
     let subscription: UnknownRecord;
     try {
       subscription = await stripe.subscriptions

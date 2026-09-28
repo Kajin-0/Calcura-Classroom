@@ -1,6 +1,89 @@
 export const BILLING_INTERVALS = ['monthly', 'annual'] as const;
 export type BillingInterval = (typeof BILLING_INTERVALS)[number];
 
+export const STRIPE_MODES = ['test', 'live'] as const;
+export type StripeMode = (typeof STRIPE_MODES)[number];
+
+export interface StripeBillingConfiguration {
+  mode: StripeMode;
+  secretKey: string;
+  productId: string;
+  monthlyPriceId: string;
+  annualPriceId: string;
+}
+
+export function parseStripeBillingConfiguration(input: {
+  mode: unknown;
+  secretKey: unknown;
+  productId: unknown;
+  monthlyPriceId: unknown;
+  annualPriceId: unknown;
+}): StripeBillingConfiguration | null {
+  const mode = parseStripeMode(input.mode);
+  const isProductId =
+    typeof input.productId === 'string' &&
+    /^prod_[A-Za-z0-9_]+$/.test(input.productId);
+  const isPriceId = (value: unknown): value is string =>
+    typeof value === 'string' && /^price_[A-Za-z0-9_]+$/.test(value);
+
+  if (
+    !mode ||
+    typeof input.secretKey !== 'string' ||
+    !stripeSecretMatchesMode(input.secretKey, mode) ||
+    !isProductId ||
+    !isPriceId(input.monthlyPriceId) ||
+    !isPriceId(input.annualPriceId) ||
+    input.monthlyPriceId === input.annualPriceId
+  ) {
+    return null;
+  }
+
+  return {
+    mode,
+    secretKey: input.secretKey,
+    productId: input.productId as string,
+    monthlyPriceId: input.monthlyPriceId,
+    annualPriceId: input.annualPriceId,
+  };
+}
+
+export function parseStripeMode(value: unknown): StripeMode | null {
+  return value === 'test' || value === 'live' ? value : null;
+}
+
+export function stripeModeIsLive(mode: StripeMode): boolean {
+  return mode === 'live';
+}
+
+export function stripeSecretMatchesMode(
+  secretKey: unknown,
+  mode: StripeMode,
+): boolean {
+  return (
+    typeof secretKey === 'string' &&
+    secretKey.startsWith(mode === 'live' ? 'sk_live_' : 'sk_test_')
+  );
+}
+
+export function stripeObjectMatchesMode(
+  value: { livemode?: unknown },
+  mode: StripeMode,
+): boolean {
+  return value.livemode === stripeModeIsLive(mode);
+}
+
+export function stripeCheckoutSessionMatchesMode(
+  session: { id?: unknown; livemode?: unknown },
+  mode: StripeMode,
+): boolean {
+  const expectedPrefix = mode === 'live' ? 'cs_live_' : 'cs_test_';
+  return (
+    stripeObjectMatchesMode(session, mode) &&
+    typeof session.id === 'string' &&
+    session.id.startsWith(expectedPrefix)
+  );
+}
+
 export const STRIPE_SUBSCRIPTION_STATUSES = [
   'active',
   'past_due',
@@ -126,20 +209,45 @@ export function stripePriceMatches(
     id?: unknown;
     active?: unknown;
     livemode?: unknown;
+    product?: unknown;
     currency?: unknown;
     unit_amount?: unknown;
     recurring?: { interval?: unknown; interval_count?: unknown } | null;
   },
   configuredPriceId: string,
+  configuredProductId: string,
+  mode: StripeMode,
 ): boolean {
   const expectation = priceExpectation(interval);
+  const priceProduct = price.product;
+  const actualProductId =
+    typeof priceProduct === 'string'
+      ? priceProduct
+      : typeof priceProduct === 'object' &&
+          priceProduct !== null &&
+          'id' in priceProduct
+        ? (priceProduct as { id?: unknown }).id
+        : null;
   return (
     price.id === configuredPriceId &&
     price.active === true &&
-    price.livemode === false &&
+    price.livemode === stripeModeIsLive(mode) &&
+    actualProductId === configuredProductId &&
     price.currency === expectation.currency &&
     price.unit_amount === expectation.unitAmount &&
     price.recurring?.interval === expectation.interval &&
     (price.recurring.interval_count ?? 1) === expectation.intervalCount
+  );
+}
+
+export function stripeProductMatches(
+  product: { id?: unknown; active?: unknown; livemode?: unknown },
+  configuredProductId: string,
+  mode: StripeMode,
+): boolean {
+  return (
+    product.id === configuredProductId &&
+    product.active === true &&
+    stripeObjectMatchesMode(product, mode)
   );
 }
