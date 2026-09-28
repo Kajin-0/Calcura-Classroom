@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { reviewSurface } from './ui-review';
 
 const baseUrl = 'http://127.0.0.1:54321/rest/v1';
 const corsHeaders = {
@@ -520,9 +521,19 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
   await page.goto('/app');
   await expect(page.getByText('Plan · Teacher Free')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await page.getByRole('link', { name: 'Classes', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Classes', exact: true }),
+  ).toBeVisible();
+  await reviewSurface(page, 'class-list');
   await page.getByRole('link', { name: /Calculus I/ }).click();
   await expect(page.getByRole('heading', { name: 'Calculus I' })).toBeVisible();
+  await reviewSurface(page, 'class-detail');
   await page.getByRole('link', { name: 'New assignment' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Create an assignment' }),
+  ).toBeVisible();
+  await reviewSurface(page, 'new-assignment');
 
   await page.getByLabel('Title').fill('  Integration practice  ');
   await page.getByRole('button', { name: 'Create draft' }).click();
@@ -539,6 +550,23 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
   await expect(
     page.getByText('New block · not yet part of the assignment.'),
   ).toBeVisible();
+  await expect(page.getByRole('status')).toHaveText(
+    '0 blocks · 0 problems total',
+  );
+  const generationOptions = page.getByText('Generation options', {
+    exact: true,
+  });
+  await generationOptions.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Difficulty')).toBeVisible();
+  await expect(page.getByLabel('Difficulty')).toHaveValue('auto');
+  await page.getByLabel('Difficulty').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.getByLabel('Variants')).toBeFocused();
+  await reviewSurface(page, 'generation-options');
+  await generationOptions.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Difficulty')).not.toBeVisible();
   await expect(page.getByRole('status')).toHaveText(
     '0 blocks · 0 problems total',
   );
@@ -621,6 +649,10 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
   );
   const persistedBlocks = page.getByRole('listitem');
   await expect(
+    page.getByRole('button', { name: 'Customize problems' }),
+  ).toHaveCount(0);
+  await reviewSurface(page, 'assignment-builder');
+  await expect(
     persistedBlocks.nth(0).getByText('Basic trigonometric integration'),
   ).toBeVisible();
   await expect(persistedBlocks.nth(0).getByText('5 problems')).toBeVisible();
@@ -637,6 +669,7 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
   const confirmation = page.getByRole('group', {
     name: 'Publish this assignment?',
   });
+  await reviewSurface(page, 'publish-confirmation');
   await page
     .getByRole('group', { name: 'Publish this assignment?' })
     .getByRole('button', { name: 'Publish assignment' })
@@ -668,6 +701,7 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
     activityRow.getByText('Basic trigonometric integration'),
   ).toBeVisible();
   await expect(activityRow.getByText('50% (1/2)')).toBeVisible();
+  await reviewSurface(page, 'assignment-analytics');
 
   await page.getByRole('button', { name: 'Duplicate assignment' }).click();
   await expect(
@@ -691,6 +725,7 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
     name: 'Delete assignment?',
   });
   await expect(deleteConfirmation).toBeVisible();
+  await reviewSurface(page, 'delete-confirmation');
   await deleteConfirmation.getByRole('button', { name: 'Cancel' }).click();
   await expect(deleteConfirmation).not.toBeVisible();
   expect(assignments).toHaveLength(2);
@@ -701,6 +736,7 @@ test('teacher creates a draft, adds a practice block, and publishes it', async (
     .click();
   await expect(page.getByRole('heading', { name: 'Calculus I' })).toBeVisible();
   expect(assignments.map((row) => row.id)).toEqual(['assignment-playwright']);
+  await reviewSurface(page, 'assignment-list');
 
   await page.getByRole('link', { name: 'Edit Integration practice' }).click();
   await expect(

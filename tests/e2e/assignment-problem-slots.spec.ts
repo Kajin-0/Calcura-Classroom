@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { reviewSurface } from './ui-review';
 
 const apiOrigin = 'http://127.0.0.1:54321/rest/v1';
 const classId = '11111111-1111-4111-8111-111111111111';
@@ -87,6 +88,16 @@ test('Pro teacher can preview and safely customize deterministic problem slots',
   };
 
   await page.addInitScript(() => {
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (keyframes, options) {
+      if (this.matches('.problem-slot-row')) {
+        const count = Number(
+          document.documentElement.dataset.slotAnimations || 0,
+        );
+        document.documentElement.dataset.slotAnimations = String(count + 1);
+      }
+      return animate.call(this, keyframes, options);
+    };
     localStorage.setItem(
       'sb-127-auth-token',
       JSON.stringify({
@@ -296,6 +307,20 @@ test('Pro teacher can preview and safely customize deterministic problem slots',
   );
 
   const slotRows = page.locator('.problem-slot-row');
+  await page.getByRole('button', { name: 'Problem 1, unlocked' }).focus();
+  await page.keyboard.press('Tab');
+  await expect(
+    slotRows.nth(0).getByRole('button', { name: 'Regenerate' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    slotRows.nth(0).getByRole('button', { name: 'Lock', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    slotRows.nth(0).getByRole('button', { name: 'Move down' }),
+  ).toBeFocused();
+  await reviewSurface(page, 'problem-editor');
   await slotRows.nth(0).getByRole('button', { name: 'Regenerate' }).click();
   await expect(page.locator('.problem-slot-feedback')).toContainText(
     'Problem 1 regenerated',
@@ -321,6 +346,33 @@ test('Pro teacher can preview and safely customize deterministic problem slots',
     '77777777-7777-4777-8777-000000000001',
     '77777777-7777-4777-8777-000000000003',
   ]);
+  expect(
+    await page.evaluate(() =>
+      Number(document.documentElement.dataset.slotAnimations),
+    ),
+  ).toBe(2);
+  const seedsBeforeReducedMove = slots
+    .map(({ id, regeneration_seed }) => [id, regeneration_seed])
+    .sort();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await slotRows.nth(0).getByRole('button', { name: 'Move down' }).click();
+  await expect(slotRows.nth(0)).toHaveAttribute(
+    'data-slot-id',
+    '77777777-7777-4777-8777-000000000001',
+  );
+  expect(
+    await page.evaluate(() =>
+      Number(document.documentElement.dataset.slotAnimations),
+    ),
+  ).toBe(2);
+  expect(
+    slots.map(({ id, regeneration_seed }) => [id, regeneration_seed]).sort(),
+  ).toEqual(seedsBeforeReducedMove);
+  expect(
+    await slotRows
+      .nth(0)
+      .evaluate((row) => getComputedStyle(row).transitionDuration),
+  ).toBe('0s');
 
   const lockedSeed = slots.find((slot) => slot.locked)?.regeneration_seed;
   await page.getByRole('button', { name: 'Regenerate unlocked' }).click();
@@ -328,6 +380,7 @@ test('Pro teacher can preview and safely customize deterministic problem slots',
     name: 'Confirm bulk regeneration',
   });
   await expect(confirmation).toBeVisible();
+  await reviewSurface(page, 'problem-confirmation');
   await confirmation
     .getByRole('button', { name: 'Confirm regeneration' })
     .click();

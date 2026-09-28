@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { reviewSurface } from './ui-review';
 
 const workspaceId = '11111111-1111-4111-8111-111111111111';
 const firstClassId = '22222222-2222-4222-8222-222222222222';
@@ -176,6 +177,12 @@ test('teacher dashboard shows real aggregate sections, navigation, and class fil
   await page.goto('/app');
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   await expect(page.getByText('Plan · Teacher Free')).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('link', { name: 'Skip to content' }),
+  ).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('main')).toBeFocused();
   await expect(
     page.getByRole('heading', { name: 'Completion by class' }),
   ).toBeVisible();
@@ -207,6 +214,11 @@ test('dashboard remains legible and contained at desktop, tablet, and phone widt
   page,
 }) => {
   await mockLocalSession(page);
+  await page.goto('/app');
+  await expect(
+    page.getByRole('heading', { name: 'Completion by class' }),
+  ).toBeVisible();
+  await reviewSurface(page, 'dashboard');
   for (const width of [1440, 1024, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/app');
@@ -236,6 +248,69 @@ test('dashboard remains legible and contained at desktop, tablet, and phone widt
       });
     }
   }
+});
+
+test('dashboard has stable loading, recoverable error, and calm empty states', async ({
+  page,
+}) => {
+  await mockLocalSession(page);
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let fail = true;
+  await page.route('**/rpc/get_workspace_dashboard', async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    await pending;
+    await route.fulfill(
+      fail
+        ? {
+            status: 503,
+            headers: corsHeaders,
+            json: { message: 'Temporarily unavailable' },
+          }
+        : {
+            status: 200,
+            headers: corsHeaders,
+            json: {
+              schema_version: 1,
+              summary: {
+                active_classes: 0,
+                students: 0,
+                active_assignments: 0,
+                student_assignment_opportunities: 0,
+                students_completed: 0,
+                completion_rate: null,
+                problems_completed: 0,
+                problems_correct: 0,
+                accuracy: null,
+              },
+              classes: [],
+              assignments: [],
+              activities: [],
+            },
+          },
+    );
+  });
+  await page.goto('/app');
+  await expect(
+    page.getByRole('status', { name: 'Loading dashboard' }),
+  ).toBeVisible();
+  await reviewSurface(page, 'dashboard-loading');
+  release();
+  await expect(page.getByRole('alert')).toContainText('Dashboard unavailable');
+  await reviewSurface(page, 'dashboard-error');
+  fail = false;
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'No classes yet' }),
+  ).toBeVisible();
+  await reviewSurface(page, 'dashboard-empty');
+  await page.getByRole('button', { name: 'Create your first class' }).click();
+  await expect(page.getByRole('textbox', { name: 'Class name' })).toBeVisible();
 });
 
 test('reduced motion disables dashboard entrance and chart transitions', async ({

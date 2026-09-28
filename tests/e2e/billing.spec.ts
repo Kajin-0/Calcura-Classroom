@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { reviewSurface } from './ui-review';
 
 const workspaceId = 'a7e04ca0-0864-48f2-9990-86df20d74bc2';
 const userId = 'b8f15db1-1975-49f3-a291-97e31e8a6cd3';
@@ -164,9 +165,71 @@ test('teacher sees restrained workspace billing choices without changing Free ac
   await expect(
     page.getByRole('button', { name: 'Upgrade annually' }),
   ).toBeVisible();
+  await page.getByRole('button', { name: 'Upgrade monthly' }).focus();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Upgrade annually' }),
+  ).toBeFocused();
+  await reviewSurface(page, 'billing-free');
 
   const pageWidth = await page.evaluate(
     () => document.documentElement.scrollWidth,
   );
   expect(pageWidth).toBeLessThanOrEqual(1280);
+});
+
+test('Pro billing stays neutral and its portal action remains keyboard reachable', async ({
+  page,
+}) => {
+  await mockTeacher(page);
+  await page.route('**/rest/v1/rpc/get_workspace_entitlement', (route) =>
+    route.fulfill({
+      status: 200,
+      headers: corsHeaders,
+      json: [
+        {
+          workspace_id: workspaceId,
+          plan: 'pro',
+          status: 'active',
+          source: 'stripe',
+          effective_at: now,
+          expires_at: null,
+          capabilities: [
+            'basic_classroom',
+            'basic_assignments',
+            'basic_analytics',
+            'advanced_analytics',
+            'result_export',
+            'larger_class_limits',
+            'advanced_assignment_editing',
+          ],
+        },
+      ],
+    }),
+  );
+  await page.route('**/functions/v1/billing-summary', (route) =>
+    route.fulfill({
+      status: 200,
+      headers: corsHeaders,
+      json: {
+        billing_interval: 'monthly',
+        subscription_status: 'active',
+        current_period_end: '2030-10-01T12:00:00Z',
+        cancel_at_period_end: true,
+        can_manage_billing: true,
+      },
+    }),
+  );
+  await page.goto('/app/billing');
+  await expect(
+    page.getByRole('heading', { name: 'Pro', exact: true }),
+  ).toBeVisible();
+  const portal = page.getByRole('button', { name: 'Manage billing' });
+  await expect(portal).toBeVisible();
+  await portal.focus();
+  await expect(portal).toBeFocused();
+  expect(
+    await portal.evaluate((button) => getComputedStyle(button).outlineStyle),
+  ).not.toBe('none');
+  await reviewSurface(page, 'billing-pro');
 });

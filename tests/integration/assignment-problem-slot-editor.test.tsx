@@ -87,6 +87,29 @@ describe('assignment problem slot editor', () => {
     ).toBeVisible();
   });
 
+  it('announces a failed action as an error without changing slot selection', async () => {
+    vi.mocked(regenerateAssignmentProblemSlot).mockResolvedValue({
+      ok: false,
+      error: {
+        code: 'unexpected',
+        message: 'Could not regenerate. Try again.',
+      },
+    });
+    render(<Harness />);
+    fireEvent.click(
+      within(screen.getAllByRole('listitem')[0]!).getByRole('button', {
+        name: 'Regenerate',
+      }),
+    );
+    expect(
+      await screen.findByText('Could not regenerate. Try again.'),
+    ).toHaveAttribute('role', 'alert');
+    expect(
+      screen.getByRole('button', { name: 'Problem 1, unlocked' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+  });
+
   it('regenerates, locks/unlocks, reorders and confirms bulk regeneration', async () => {
     vi.mocked(regenerateAssignmentProblemSlot).mockImplementation(
       async (id) => {

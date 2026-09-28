@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { reviewSurface } from './ui-review';
 
 test('loads the classroom sign-in route with the isolated test configuration', async ({
   page,
@@ -13,6 +14,31 @@ test('loads the classroom sign-in route with the isolated test configuration', a
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   await expect(page.getByLabel('Email address')).toBeEnabled();
   expect(pageErrors).toEqual([]);
+  await reviewSurface(page, 'signin');
+});
+
+test('sign-in retains visible keyboard focus and respects reduced motion', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/signin');
+  await page.getByLabel('Email address').focus();
+  await page.keyboard.press('Tab');
+  const submit = page.getByRole('button', { name: 'Send sign-in code' });
+  await expect(submit).toBeFocused();
+  expect(
+    await submit.evaluate((button) => getComputedStyle(button).outlineStyle),
+  ).not.toBe('none');
+  expect(
+    await page
+      .locator('.auth-card')
+      .evaluate((card) => getComputedStyle(card).animationName),
+  ).toBe('none');
+  expect(
+    await submit.evaluate(
+      (button) => getComputedStyle(button).transitionDuration,
+    ),
+  ).toBe('0s');
 });
 
 test('protected workspace redirects to sign in without configured credentials', async ({

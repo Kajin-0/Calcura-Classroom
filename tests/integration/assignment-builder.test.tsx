@@ -587,6 +587,39 @@ describe('teacher assignment workflow', () => {
     expect(screen.getByText('Problem 1')).toBeVisible();
   });
 
+  it.each(['published', 'archived'] as const)(
+    'keeps Pro problem controls unavailable on a %s assignment',
+    async (status) => {
+      vi.mocked(useWorkspaceEntitlement).mockReturnValue({
+        workspaceId: workspace.id,
+        loading: false,
+        entitlement: proEntitlement,
+        error: null,
+        retry: vi.fn(),
+      });
+      vi.mocked(getAssignmentById).mockResolvedValue({
+        ok: true,
+        value: { ...draft, status, published_at: '2026-09-24T12:00:00Z' },
+      });
+      vi.mocked(listAssignmentItems).mockResolvedValue({
+        ok: true,
+        value: [item],
+      });
+      renderApp('/app/classes/class-a/assignments/assignment-a');
+      await screen.findByText('Content locked');
+      expect(
+        screen.queryByRole('button', { name: 'Customize problems' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Regenerate unlocked' }),
+      ).not.toBeInTheDocument();
+      expect(prepareAssignmentProblemSlots).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole('button', { name: 'Save details' }),
+      ).toBeVisible();
+    },
+  );
+
   it('retains four uniquely identified blocks through add, edit, reorder, and reload', async () => {
     const persistedItems: AssignmentItemSummary[] = [];
     const activityKeys: AssignmentItemSummary['activity_key'][] = [
