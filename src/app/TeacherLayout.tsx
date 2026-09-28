@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuthSession } from '../features/auth/useAuthSession';
 import { useWorkspace } from '../features/workspaces/useWorkspace';
 import { WorkspacePlanLabel } from '../features/workspaces/entitlements/WorkspacePlanLabel';
+import { LoadingState } from '../components/LoadingState';
 
 export function TeacherLayout() {
   const { session, signOut } = useAuthSession();
@@ -16,6 +17,9 @@ export function TeacherLayout() {
 
   return (
     <div className="teacher-app">
+      <a className="skip-link" href="#teacher-main">
+        Skip to content
+      </a>
       <header className="workspace-header">
         <Link className="wordmark" to="/app">
           Calcura Classroom
@@ -46,14 +50,10 @@ export function TeacherLayout() {
           {signOutError}
         </p>
       )}
-      <main className="teacher-main">
+      <main className="teacher-main" id="teacher-main" tabIndex={-1}>
         {loading ? (
-          <section
-            className="workspace-content"
-            aria-live="polite"
-            role="status"
-          >
-            <p className="loading-copy">Loading your classroom workspace…</p>
+          <section className="workspace-content">
+            <LoadingState label="Loading your classroom workspace…" />
           </section>
         ) : error || !workspace ? (
           <section className="workspace-content recoverable-state">

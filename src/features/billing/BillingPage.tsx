@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { LoadingState } from '../../components/LoadingState';
 import { useSearchParams } from 'react-router-dom';
 import { useWorkspaceEntitlement } from '../workspaces/entitlements/useWorkspaceEntitlement';
 import { ENTITLEMENT_PLAN_LABELS } from '../workspaces/entitlements/entitlementTypes';
@@ -222,9 +223,7 @@ export function BillingPage() {
         </div>
 
         {summaryLoading ? (
-          <p className="muted-copy" aria-live="polite" role="status">
-            Loading billing details…
-          </p>
+          <LoadingState label="Loading billing details…" />
         ) : summaryError ? (
           <div className="billing-summary-error" role="alert">
             <p>{summaryError}</p>

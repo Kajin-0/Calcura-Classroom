@@ -1,3 +1,4 @@
+import { LoadingState } from '../../components/LoadingState';
 import {
   useCallback,
   useEffect,
@@ -988,6 +989,7 @@ function AssignmentBuilder({
         <p className="eyebrow">
           Assignment ·{' '}
           <span
+            key={assignment.status}
             className={`assignment-status assignment-status-${assignment.status}`}
           >
             {assignment.status}
@@ -1041,7 +1043,7 @@ function AssignmentBuilder({
           </p>
         )}
         <button
-          className="button button-quiet"
+          className="button button-secondary"
           type="submit"
           disabled={
             pending ||
@@ -1199,7 +1201,7 @@ function AssignmentBuilder({
             </details>
             <div className="practice-block-actions">
               <button
-                className="button button-quiet"
+                className="button button-primary"
                 type="submit"
                 disabled={
                   pending ||
@@ -1549,8 +1551,8 @@ export function AssignmentBuilderPage() {
 
   if (loading)
     return (
-      <section className="workspace-content" role="status">
-        Loading assignment…
+      <section className="workspace-content">
+        <LoadingState label="Loading assignment…" />
       </section>
     );
   if (unavailable || !classItem || !assignment) {

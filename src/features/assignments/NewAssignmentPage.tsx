@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { LoadingState } from '../../components/LoadingState';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useWorkspace } from '../workspaces/useWorkspace';
 import { getClassById, type ClassSummary } from '../classes/classService';
@@ -151,8 +152,8 @@ export function NewAssignmentPage() {
 
   if (loading)
     return (
-      <section className="workspace-content" role="status">
-        Loading class…
+      <section className="workspace-content">
+        <LoadingState label="Loading class…" />
       </section>
     );
   if (unavailable || !classItem) {

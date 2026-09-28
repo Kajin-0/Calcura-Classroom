@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { LoadingState } from '../../components/LoadingState';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDueAt } from './assignmentFormatters';
 import {
@@ -230,16 +231,14 @@ export function ClassAssignmentsSection({
           </p>
         </div>
         {active && (
-          <Link className="button button-quiet" to="assignments/new">
+          <Link className="button button-secondary" to="assignments/new">
             New assignment
           </Link>
         )}
       </div>
 
       {loading ? (
-        <p className="list-status" role="status">
-          Loading assignments…
-        </p>
+        <LoadingState label="Loading assignments…" />
       ) : loadError ? (
         <div className="inline-state">
           <p>We couldn’t load assignments.</p>

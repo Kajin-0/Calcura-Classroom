@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useReorderMotion } from '../../lib/ui/useReorderMotion';
 import type { AssignmentItemSummary } from './assignmentService';
 import {
   regenerateAssignmentProblemSlot,
@@ -84,9 +85,13 @@ export function AssignmentProblemSlotEditor({
   const [bulkPending, setBulkPending] = useState(false);
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [feedbackIsError, setFeedbackIsError] = useState(false);
   const sortedSlots = useMemo(
     () => [...slots].sort((left, right) => left.position - right.position),
     [slots],
+  );
+  const listRef = useReorderMotion(
+    sortedSlots.map((slot) => slot.id).join(','),
   );
   const effectiveSelectedSlotId = sortedSlots.some(
     (slot) => slot.id === selectedSlotId,
@@ -200,9 +205,11 @@ export function AssignmentProblemSlotEditor({
     if (pendingSlotId || bulkPending || slot.locked) return;
     setPendingSlotId(slot.id);
     setFeedback('');
+    setFeedbackIsError(false);
     const result = await regenerateAssignmentProblemSlot(slot.id);
     setPendingSlotId(null);
     if (!result.ok) {
+      setFeedbackIsError(true);
       setFeedback(result.error.message);
       return;
     }
@@ -215,9 +222,11 @@ export function AssignmentProblemSlotEditor({
     if (pendingSlotId || bulkPending) return;
     setPendingSlotId(slot.id);
     setFeedback('');
+    setFeedbackIsError(false);
     const result = await setAssignmentProblemSlotLocked(slot.id, !slot.locked);
     setPendingSlotId(null);
     if (!result.ok) {
+      setFeedbackIsError(true);
       setFeedback(result.error.message);
       return;
     }
@@ -244,12 +253,14 @@ export function AssignmentProblemSlotEditor({
     reordered[target] = currentSlot;
     setPendingSlotId(sortedSlots[index]?.id ?? 'reorder');
     setFeedback('');
+    setFeedbackIsError(false);
     const result = await reorderAssignmentProblemSlots(
       item.id,
       reordered.map((slot) => slot.id),
     );
     setPendingSlotId(null);
     if (!result.ok) {
+      setFeedbackIsError(true);
       setFeedback(result.error.message);
       return;
     }
@@ -263,9 +274,11 @@ export function AssignmentProblemSlotEditor({
     setBulkPending(true);
     setConfirmBulk(false);
     setFeedback('');
+    setFeedbackIsError(false);
     const result = await regenerateUnlockedAssignmentProblemSlots(item.id);
     setBulkPending(false);
     if (!result.ok) {
+      setFeedbackIsError(true);
       setFeedback(result.error.message);
       return;
     }
@@ -286,8 +299,8 @@ export function AssignmentProblemSlotEditor({
         <div>
           <h3 id={`slot-editor-${item.id}`}>Individual problems</h3>
           <p className="muted-copy">
-            These controls change deterministic generation, not stored
-            equations.
+            Select a problem to preview it. Locks protect problems from
+            regeneration.
           </p>
         </div>
         <button
@@ -315,7 +328,7 @@ export function AssignmentProblemSlotEditor({
             will stay unchanged.
           </p>
           <button
-            className="button button-quiet"
+            className="button button-secondary"
             type="button"
             onClick={() => void regenerateUnlocked()}
           >
@@ -332,9 +345,18 @@ export function AssignmentProblemSlotEditor({
       ) : null}
 
       <div className="problem-slot-editor-layout">
-        <ol className="problem-slot-list" aria-label="Assignment problem slots">
+        <ol
+          ref={listRef}
+          className="problem-slot-list"
+          aria-label="Assignment problem slots"
+        >
           {sortedSlots.map((slot, index) => (
-            <li key={slot.id} className="problem-slot-row">
+            <li
+              key={slot.id}
+              className="problem-slot-row"
+              data-slot-id={slot.id}
+              data-selected={slot.id === effectiveSelectedSlotId}
+            >
               <button
                 className="problem-slot-select"
                 type="button"
@@ -346,7 +368,12 @@ export function AssignmentProblemSlotEditor({
                 }}
               >
                 <span>Problem {index + 1}</span>
-                <span>{slot.locked ? 'Locked' : 'Unlocked'}</span>
+                <span
+                  className="problem-slot-lock-status"
+                  data-locked={slot.locked}
+                >
+                  {slot.locked ? 'Locked' : 'Unlocked'}
+                </span>
               </button>
               <div className="problem-slot-actions">
                 <button
@@ -446,7 +473,10 @@ export function AssignmentProblemSlotEditor({
         </section>
       </div>
       {feedback ? (
-        <p className="problem-slot-feedback" role="status">
+        <p
+          className="problem-slot-feedback"
+          role={feedbackIsError ? 'alert' : 'status'}
+        >
           {feedback}
         </p>
       ) : null}

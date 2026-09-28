@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { LoadingState } from '../../components/LoadingState';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../workspaces/useWorkspace';
 import {
@@ -145,9 +146,7 @@ export function ClassListPage() {
       )}
 
       {loading ? (
-        <p className="list-status" aria-live="polite" role="status">
-          Loading classes…
-        </p>
+        <LoadingState label="Loading classes…" />
       ) : loadError ? (
         <div className="recoverable-state inline-state">
           <p>We couldn’t load your classes.</p>

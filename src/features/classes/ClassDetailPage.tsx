@@ -6,6 +6,7 @@ import {
   type FormEvent,
 } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { LoadingState } from '../../components/LoadingState';
 import { useWorkspace } from '../workspaces/useWorkspace';
 import { ClassAssignmentsSection } from '../assignments/ClassAssignmentsSection';
 import { formatJoinCode } from './classFormatters';
@@ -216,12 +217,8 @@ function ClassDetailContent({ classId }: { classId: string }) {
 
   if (loading) {
     return (
-      <section
-        className="workspace-content class-detail-page"
-        role="status"
-        aria-live="polite"
-      >
-        Loading class…
+      <section className="workspace-content class-detail-page">
+        <LoadingState label="Loading class…" />
       </section>
     );
   }
