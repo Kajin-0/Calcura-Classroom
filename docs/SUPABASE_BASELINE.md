@@ -1,5 +1,33 @@
 # Supabase baseline status
 
+## Verified shared-project baseline (2026-09-28)
+
+The production Supabase project is shared by Calcura and Calcura Classroom.
+Read-only production inspection confirmed these existing migration versions:
+
+- `20260906010613_create_practice_attempts` — Calcura-owned.
+- `20260917134424_harden_communication_preferences_privileges` — Calcura-owned.
+
+Classroom includes comment-only marker files for those two versions so the
+Supabase CLI's timestamp-based migration-history comparison can represent the
+shared project's existing history. The marker files are bookkeeping only:
+they do not create or alter Calcura tables, policies, grants, or other objects.
+Calcura remains the owner of `public.practice_attempts` and
+`public.communication_preferences`; Classroom does not recreate or manage
+them.
+
+The first Classroom-owned migration is
+`20260924002726_classroom_foundation.sql`. Production inspection before the
+first Classroom deployment confirmed there is currently no Classroom schema,
+including no Classroom tables or `classroom_private` schema. The markers do not
+change that state and do not imply that any Classroom migration is deployed.
+
+Supabase CLI migration comparison uses only migration timestamps/versions;
+SQL contents are not compared. Therefore these markers align local history
+without taking ownership of the corresponding Calcura schema. Never run
+`migration repair` or apply migrations to production as part of this baseline
+reconciliation.
+
 ## Phase 0 remote baseline findings
 
 - Supabase CLI before this work: not installed on the VPS PATH.

@@ -1,0 +1,4 @@
+-- Shared Supabase migration-history marker only.
+-- This version is Calcura-owned. Classroom does not create or alter
+-- public.practice_attempts; this file exists only to mirror the shared
+-- project's already-applied migration version in local CLI history.
