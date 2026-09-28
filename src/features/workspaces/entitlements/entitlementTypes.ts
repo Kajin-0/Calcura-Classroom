@@ -13,6 +13,7 @@ export const WORKSPACE_CAPABILITIES = [
   'basic_assignments',
   'basic_analytics',
   'advanced_analytics',
+  'advanced_assignment_editing',
   'result_export',
   'larger_class_limits',
   'multiple_teacher_workspace',

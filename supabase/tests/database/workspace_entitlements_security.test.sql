@@ -131,7 +131,7 @@ select extensions.is(
 );
 select extensions.is(
   (select capabilities from public.get_workspace_entitlement('92000000-0000-4000-8000-000000000002')),
-  array['basic_classroom', 'basic_assignments', 'basic_analytics', 'advanced_analytics', 'result_export', 'larger_class_limits']::text[],
+  array['basic_classroom', 'basic_assignments', 'basic_analytics', 'advanced_analytics', 'result_export', 'larger_class_limits', 'advanced_assignment_editing']::text[],
   'Pro inherits every Free capability and adds only Pro capabilities'
 );
 select extensions.ok(
@@ -157,12 +157,12 @@ select extensions.ok(
 );
 select extensions.is(
   (select capabilities from public.get_workspace_entitlement('92000000-0000-4000-8000-000000000007')),
-  array['basic_classroom', 'basic_assignments', 'basic_analytics', 'advanced_analytics', 'result_export', 'larger_class_limits', 'multiple_teacher_workspace', 'school_admin']::text[],
+  array['basic_classroom', 'basic_assignments', 'basic_analytics', 'advanced_analytics', 'result_export', 'larger_class_limits', 'advanced_assignment_editing', 'multiple_teacher_workspace', 'school_admin']::text[],
   'School inherits Team and adds school administration'
 );
 select extensions.is(
   (select capabilities from public.get_workspace_entitlement('92000000-0000-4000-8000-000000000008')),
-  array['basic_classroom', 'basic_assignments', 'basic_analytics', 'advanced_analytics', 'result_export', 'larger_class_limits', 'multiple_teacher_workspace', 'school_admin', 'institution_integrations']::text[],
+  array['basic_classroom', 'basic_assignments', 'basic_analytics', 'advanced_analytics', 'result_export', 'larger_class_limits', 'advanced_assignment_editing', 'multiple_teacher_workspace', 'school_admin', 'institution_integrations']::text[],
   'Institution inherits School and adds institution integration capability'
 );
 select extensions.ok(

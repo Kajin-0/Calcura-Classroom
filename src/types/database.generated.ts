@@ -161,6 +161,50 @@ export type Database = {
           },
         ];
       };
+      assignment_problem_slots: {
+        Row: {
+          assignment_item_id: string;
+          created_at: string;
+          id: string;
+          locked: boolean;
+          position: number;
+          regeneration_seed: string | null;
+          slot_spec_version: number;
+          source_ordinal: number;
+          updated_at: string;
+        };
+        Insert: {
+          assignment_item_id: string;
+          created_at?: string;
+          id?: string;
+          locked?: boolean;
+          position: number;
+          regeneration_seed?: string | null;
+          slot_spec_version?: number;
+          source_ordinal: number;
+          updated_at?: string;
+        };
+        Update: {
+          assignment_item_id?: string;
+          created_at?: string;
+          id?: string;
+          locked?: boolean;
+          position?: number;
+          regeneration_seed?: string | null;
+          slot_spec_version?: number;
+          source_ordinal?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'assignment_problem_slots_assignment_item_id_fkey';
+            columns: ['assignment_item_id'];
+            isOneToOne: false;
+            referencedRelation: 'assignment_items';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       assignments: {
         Row: {
           class_id: string;
@@ -278,6 +322,106 @@ export type Database = {
           },
         ];
       };
+      stripe_webhook_events: {
+        Row: {
+          event_type: string;
+          processed_at: string;
+          result: string;
+          stripe_event_id: string;
+          workspace_id: string | null;
+        };
+        Insert: {
+          event_type: string;
+          processed_at?: string;
+          result: string;
+          stripe_event_id: string;
+          workspace_id?: string | null;
+        };
+        Update: {
+          event_type?: string;
+          processed_at?: string;
+          result?: string;
+          stripe_event_id?: string;
+          workspace_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'stripe_webhook_events_workspace_id_fkey';
+            columns: ['workspace_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      workspace_billing: {
+        Row: {
+          billing_interval: string | null;
+          cancel_at_period_end: boolean;
+          checkout_attempt_id: string | null;
+          checkout_interval: string | null;
+          checkout_lock_expires_at: string | null;
+          checkout_session_expires_at: string | null;
+          checkout_session_id: string | null;
+          created_at: string;
+          current_period_end: string | null;
+          past_due_since: string | null;
+          stripe_customer_id: string | null;
+          stripe_price_id: string | null;
+          stripe_subscription_id: string | null;
+          subscription_created_at: number | null;
+          subscription_status: string | null;
+          updated_at: string;
+          workspace_id: string;
+        };
+        Insert: {
+          billing_interval?: string | null;
+          cancel_at_period_end?: boolean;
+          checkout_attempt_id?: string | null;
+          checkout_interval?: string | null;
+          checkout_lock_expires_at?: string | null;
+          checkout_session_expires_at?: string | null;
+          checkout_session_id?: string | null;
+          created_at?: string;
+          current_period_end?: string | null;
+          past_due_since?: string | null;
+          stripe_customer_id?: string | null;
+          stripe_price_id?: string | null;
+          stripe_subscription_id?: string | null;
+          subscription_created_at?: number | null;
+          subscription_status?: string | null;
+          updated_at?: string;
+          workspace_id: string;
+        };
+        Update: {
+          billing_interval?: string | null;
+          cancel_at_period_end?: boolean;
+          checkout_attempt_id?: string | null;
+          checkout_interval?: string | null;
+          checkout_lock_expires_at?: string | null;
+          checkout_session_expires_at?: string | null;
+          checkout_session_id?: string | null;
+          created_at?: string;
+          current_period_end?: string | null;
+          past_due_since?: string | null;
+          stripe_customer_id?: string | null;
+          stripe_price_id?: string | null;
+          stripe_subscription_id?: string | null;
+          subscription_created_at?: number | null;
+          subscription_status?: string | null;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'workspace_billing_workspace_id_fkey';
+            columns: ['workspace_id'];
+            isOneToOne: true;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       workspace_entitlements: {
         Row: {
           created_at: string;
@@ -386,6 +530,23 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      apply_stripe_subscription_reconciliation: {
+        Args: {
+          p_billing_interval: string;
+          p_cancel_at_period_end: boolean;
+          p_current_period_end: string;
+          p_event_id: string;
+          p_event_type: string;
+          p_stripe_customer_id: string;
+          p_stripe_price_id: string;
+          p_stripe_subscription_id: string;
+          p_subscription_created_at: number;
+          p_subscription_status: string;
+          p_supported_price: boolean;
+          p_workspace_id: string;
+        };
+        Returns: string;
+      };
       archive_assignment: {
         Args: { p_assignment_id: string };
         Returns: {
@@ -440,6 +601,16 @@ export type Database = {
         }[];
       };
       get_class_join_code: { Args: { p_class_id: string }; Returns: string };
+      get_workspace_billing_summary: {
+        Args: { p_workspace_id: string };
+        Returns: {
+          billing_interval: string;
+          can_manage_billing: boolean;
+          cancel_at_period_end: boolean;
+          current_period_end: string;
+          subscription_status: string;
+        }[];
+      };
       get_workspace_dashboard: {
         Args: { p_workspace_id: string };
         Returns: Json;
@@ -463,6 +634,20 @@ export type Database = {
           class_name: string;
           enrollment_status: string;
           workspace_id: string;
+        }[];
+      };
+      prepare_assignment_problem_slots: {
+        Args: { p_assignment_id: string };
+        Returns: {
+          assignment_item_id: string;
+          created_at: string;
+          id: string;
+          locked: boolean;
+          position: number;
+          regeneration_seed: string;
+          slot_spec_version: number;
+          source_ordinal: number;
+          updated_at: string;
         }[];
       };
       publish_assignment: {
@@ -512,9 +697,110 @@ export type Database = {
         };
         Returns: string;
       };
+      record_stripe_webhook_noop: {
+        Args: {
+          p_event_id: string;
+          p_event_type: string;
+          p_result: string;
+          p_workspace_id?: string;
+        };
+        Returns: string;
+      };
+      regenerate_assignment_problem_slot: {
+        Args: { p_slot_id: string };
+        Returns: {
+          assignment_item_id: string;
+          created_at: string;
+          id: string;
+          locked: boolean;
+          position: number;
+          regeneration_seed: string;
+          slot_spec_version: number;
+          source_ordinal: number;
+          updated_at: string;
+        }[];
+      };
+      regenerate_unlocked_assignment_problem_slots: {
+        Args: { p_assignment_item_id: string };
+        Returns: {
+          assignment_item_id: string;
+          created_at: string;
+          id: string;
+          locked: boolean;
+          position: number;
+          regeneration_seed: string;
+          slot_spec_version: number;
+          source_ordinal: number;
+          updated_at: string;
+        }[];
+      };
+      release_workspace_checkout: {
+        Args: { p_attempt_id: string; p_workspace_id: string };
+        Returns: undefined;
+      };
       reorder_assignment_items: {
         Args: { p_assignment_id: string; p_item_ids: string[] };
         Returns: undefined;
+      };
+      reorder_assignment_problem_slots: {
+        Args: { p_assignment_item_id: string; p_ordered_slot_ids: string[] };
+        Returns: {
+          assignment_item_id: string;
+          created_at: string;
+          id: string;
+          locked: boolean;
+          position: number;
+          regeneration_seed: string;
+          slot_spec_version: number;
+          source_ordinal: number;
+          updated_at: string;
+        }[];
+      };
+      reserve_workspace_checkout: {
+        Args: {
+          p_actor_user_id: string;
+          p_billing_interval: string;
+          p_workspace_id: string;
+        };
+        Returns: {
+          attempt_id: string;
+          checkout_session_id: string;
+          reservation_state: string;
+          stripe_customer_id: string;
+        }[];
+      };
+      save_workspace_checkout_session: {
+        Args: {
+          p_actor_user_id: string;
+          p_attempt_id: string;
+          p_session_expires_at: string;
+          p_stripe_session_id: string;
+          p_workspace_id: string;
+        };
+        Returns: undefined;
+      };
+      save_workspace_stripe_customer: {
+        Args: {
+          p_actor_user_id: string;
+          p_attempt_id: string;
+          p_stripe_customer_id: string;
+          p_workspace_id: string;
+        };
+        Returns: undefined;
+      };
+      set_assignment_problem_slot_locked: {
+        Args: { p_locked: boolean; p_slot_id: string };
+        Returns: {
+          assignment_item_id: string;
+          created_at: string;
+          id: string;
+          locked: boolean;
+          position: number;
+          regeneration_seed: string;
+          slot_spec_version: number;
+          source_ordinal: number;
+          updated_at: string;
+        }[];
       };
       workspace_has_capability: {
         Args: { p_capability: string; p_workspace_id: string };
