@@ -1128,6 +1128,119 @@ h1 {
 .practice-block-editor-status {
   margin: -5px 0 0;
 }
+.assignment-slot-reset-confirmation {
+  margin-top: 13px;
+  padding: 11px 13px;
+  border-left: 3px solid #b18a35;
+  background: #f8f6f0;
+}
+.assignment-slot-reset-confirmation p {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+.problem-slot-editor {
+  display: grid;
+  gap: 12px;
+  margin-top: 15px;
+  padding: 15px;
+  border-top: 1px solid var(--color-border);
+  background: #fbfbfa;
+}
+.problem-slot-editor h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.problem-slot-editor-heading,
+.problem-slot-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr);
+  gap: 18px;
+}
+.problem-slot-editor-heading {
+  align-items: start;
+}
+.problem-slot-editor-heading > div {
+  display: grid;
+  gap: 5px;
+}
+.problem-slot-list {
+  display: grid;
+  gap: 7px;
+  align-content: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.problem-slot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #fff;
+}
+.problem-slot-select {
+  min-height: 38px;
+  min-width: 0;
+  flex: 1;
+  padding: 4px 0;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.problem-slot-select[aria-pressed='true'] {
+  color: var(--color-focus);
+}
+.problem-slot-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px 10px;
+}
+.problem-slot-actions button,
+.problem-slot-confirm button {
+  min-height: 36px;
+}
+.problem-slot-preview {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+.problem-slot-preview iframe {
+  display: block;
+  width: 100%;
+  min-height: 210px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #fff;
+}
+.problem-slot-editor .muted-copy {
+  margin: 0;
+  font-size: 0.84rem;
+}
+.problem-slot-feedback {
+  color: #8c3434;
+}
+.problem-slot-confirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+}
+.problem-slot-confirm p {
+  flex-basis: 100%;
+  margin: 0;
+}
 .add-block-form {
   display: grid;
   gap: 13px;
@@ -1355,6 +1468,24 @@ h1 {
   .practice-block-readonly {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .problem-slot-editor-heading,
+  .problem-slot-editor-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .problem-slot-editor-heading {
+    align-items: stretch;
+  }
+  .problem-slot-editor-heading > button {
+    justify-self: start;
+    padding: 12px 0 0;
+  }
+  .problem-slot-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .problem-slot-actions {
+    justify-content: flex-start;
   }
   .assignment-student-progress li {
     grid-template-columns: minmax(0, 1fr) auto;

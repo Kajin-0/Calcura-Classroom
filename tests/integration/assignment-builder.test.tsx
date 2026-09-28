@@ -41,6 +41,14 @@ import type {
   AssignmentItemSummary,
   AssignmentSummary,
 } from '../../src/features/assignments/assignmentService';
+import { useWorkspaceEntitlement } from '../../src/features/workspaces/entitlements/useWorkspaceEntitlement';
+import {
+  groupAssignmentProblemSlots,
+  listAssignmentProblemSlots,
+  prepareAssignmentProblemSlots,
+} from '../../src/features/assignments/assignmentProblemSlotService';
+import type { AssignmentProblemSlot } from '../../src/features/assignments/assignmentProblemSlotService';
+import type { WorkspaceEntitlement } from '../../src/features/workspaces/entitlements/entitlementTypes';
 import type { ClassSummary } from '../../src/features/classes/classService';
 
 vi.mock('../../src/features/workspaces/workspaceService', () => ({
@@ -70,6 +78,21 @@ vi.mock('../../src/features/assignments/assignmentService', () => ({
   reorderAssignmentItems: vi.fn(),
   updateAssignmentItem: vi.fn(),
   updateAssignmentMetadata: vi.fn(),
+}));
+vi.mock(
+  '../../src/features/workspaces/entitlements/useWorkspaceEntitlement',
+  () => ({
+    useWorkspaceEntitlement: vi.fn(),
+  }),
+);
+vi.mock('../../src/features/assignments/assignmentProblemSlotService', () => ({
+  groupAssignmentProblemSlots: vi.fn(),
+  listAssignmentProblemSlots: vi.fn(),
+  prepareAssignmentProblemSlots: vi.fn(),
+  regenerateAssignmentProblemSlot: vi.fn(),
+  regenerateUnlockedAssignmentProblemSlots: vi.fn(),
+  reorderAssignmentProblemSlots: vi.fn(),
+  setAssignmentProblemSlotLocked: vi.fn(),
 }));
 
 const workspace = {
@@ -118,6 +141,37 @@ const itemTen: AssignmentItemSummary = {
 const session = {
   user: { id: 'teacher-a', email: 'teacher@example.com' },
 } as Session;
+const proEntitlement: WorkspaceEntitlement = {
+  workspaceId: workspace.id,
+  plan: 'pro',
+  status: 'active',
+  source: 'manual',
+  effectiveAt: '2026-09-24T00:00:00Z',
+  expiresAt: null,
+  capabilities: [
+    'basic_classroom',
+    'basic_assignments',
+    'basic_analytics',
+    'advanced_analytics',
+    'result_export',
+    'larger_class_limits',
+    'advanced_assignment_editing',
+  ],
+};
+const advancedSlots: AssignmentProblemSlot[] = Array.from(
+  { length: item.problem_count },
+  (_, index) => ({
+    id: `${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}${index + 1}-0000-4000-8000-00000000000${index + 1}`,
+    assignment_item_id: item.id,
+    position: index,
+    source_ordinal: index + 1,
+    regeneration_seed: null,
+    locked: false,
+    slot_spec_version: 1,
+    created_at: '2026-09-24T00:00:00Z',
+    updated_at: '2026-09-24T00:00:00Z',
+  }),
+);
 
 const emptyAnalytics: AssignmentAnalytics = {
   summary: {
@@ -284,6 +338,26 @@ function renderApp(path: string) {
 describe('teacher assignment workflow', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(useWorkspaceEntitlement).mockReturnValue({
+      workspaceId: workspace.id,
+      loading: false,
+      entitlement: null,
+      error: null,
+      retry: vi.fn(),
+    });
+    vi.mocked(listAssignmentProblemSlots).mockResolvedValue({
+      ok: true,
+      value: [],
+    });
+    vi.mocked(prepareAssignmentProblemSlots).mockResolvedValue({
+      ok: true,
+      value: advancedSlots,
+    });
+    vi.mocked(groupAssignmentProblemSlots).mockImplementation((rows, items) =>
+      rows.length > 0 && items.some((candidate) => candidate.id === item.id)
+        ? new Map([[item.id, rows]])
+        : new Map(),
+    );
     vi.mocked(ensurePersonalWorkspace).mockResolvedValue({
       ok: true,
       value: workspace,
@@ -387,6 +461,9 @@ describe('teacher assignment workflow', () => {
     expect(
       await screen.findByRole('button', { name: 'Publish assignment' }),
     ).toBeDisabled();
+    expect(
+      screen.queryByRole('button', { name: 'Customize problems' }),
+    ).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Practice activity'), {
       target: { value: 'integration.by_parts.v1' },
     });
@@ -482,6 +559,32 @@ describe('teacher assignment workflow', () => {
       within(block).getByText(/Beginner · Same for everyone/),
     ).toBeVisible();
     expect(screen.getByLabelText('Difficulty')).not.toBeVisible();
+  });
+
+  it('shows Pro-only problem customization and lazily materializes slots when opened', async () => {
+    vi.mocked(useWorkspaceEntitlement).mockReturnValue({
+      workspaceId: workspace.id,
+      loading: false,
+      entitlement: proEntitlement,
+      error: null,
+      retry: vi.fn(),
+    });
+    vi.mocked(listAssignmentItems).mockResolvedValue({
+      ok: true,
+      value: [item],
+    });
+
+    renderApp('/app/classes/class-a/assignments/assignment-a');
+    const customize = await screen.findByRole('button', {
+      name: 'Customize problems',
+    });
+    expect(customize).toBeVisible();
+    fireEvent.click(customize);
+
+    await screen.findByRole('heading', { name: 'Individual problems' });
+    expect(prepareAssignmentProblemSlots).toHaveBeenCalledWith(draft.id);
+    expect(screen.getByText(/Representative preview/)).toBeVisible();
+    expect(screen.getByText('Problem 1')).toBeVisible();
   });
 
   it('retains four uniquely identified blocks through add, edit, reorder, and reload', async () => {

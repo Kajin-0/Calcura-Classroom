@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   assignmentActivities,
@@ -33,6 +39,14 @@ import {
   type AssignmentSummary,
 } from './assignmentService';
 import { formatDueAt, toDateTimeLocal } from './assignmentFormatters';
+import { useWorkspaceEntitlement } from '../workspaces/entitlements/useWorkspaceEntitlement';
+import { AssignmentProblemSlotEditor } from './AssignmentProblemSlotEditor';
+import {
+  groupAssignmentProblemSlots,
+  listAssignmentProblemSlots,
+  prepareAssignmentProblemSlots,
+  type AssignmentProblemSlot,
+} from './assignmentProblemSlotService';
 
 function isAssignmentStatus(status: string): status is AssignmentStatus {
   return status === 'draft' || status === 'published' || status === 'archived';
@@ -54,6 +68,10 @@ function PracticeBlock({
   onEdit,
   onMove,
   onRemove,
+  canCustomize,
+  customized,
+  onCustomize,
+  customization,
 }: {
   item: AssignmentItemSummary;
   index: number;
@@ -64,6 +82,10 @@ function PracticeBlock({
   onEdit: (item: AssignmentItemSummary) => void;
   onMove: (index: number, direction: -1 | 1) => void;
   onRemove: (item: AssignmentItemSummary) => void;
+  canCustomize: boolean;
+  customized: boolean;
+  onCustomize: (item: AssignmentItemSummary) => void;
+  customization: ReactNode;
 }) {
   const activity = assignmentActivities.find(
     (candidate) => candidate.key === item.activity_key,
@@ -127,9 +149,25 @@ function PracticeBlock({
             >
               Remove
             </button>
+            {canCustomize ? (
+              <button
+                className="inline-link"
+                type="button"
+                disabled={pending}
+                aria-expanded={customization !== null}
+                onClick={() => onCustomize(item)}
+              >
+                {customization !== null
+                  ? 'Close problem editor'
+                  : customized
+                    ? 'Edit problems'
+                    : 'Customize problems'}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>
+      {customization}
     </li>
   );
 }
@@ -522,6 +560,12 @@ function AssignmentBuilder({
   initialItemsError: boolean;
 }) {
   const navigate = useNavigate();
+  const entitlementState = useWorkspaceEntitlement(classItem.workspace_id);
+  const canCustomizeProblems = Boolean(
+    entitlementState.entitlement?.capabilities.includes(
+      'advanced_assignment_editing',
+    ),
+  );
   const [assignment, setAssignment] = useState(initialAssignment);
   const [items, setItems] = useState<AssignmentItemSummary[]>(initialItems);
   const [title, setTitle] = useState(initialAssignment.title);
@@ -536,6 +580,15 @@ function AssignmentBuilder({
     useState<AssignmentVariantPolicy>('individualized');
   const [generationOptionsOpen, setGenerationOptionsOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [problemEditorItemId, setProblemEditorItemId] = useState<string | null>(
+    null,
+  );
+  const [problemSlotsByItem, setProblemSlotsByItem] = useState<
+    Map<string, AssignmentProblemSlot[]>
+  >(() => new Map());
+  const [problemSlotLoadError, setProblemSlotLoadError] = useState(false);
+  const [resetSlotsConfirmationItemId, setResetSlotsConfirmationItemId] =
+    useState<string | null>(null);
   const [loadingItems, setLoadingItems] = useState(false);
   const [itemLoadError, setItemLoadError] = useState(initialItemsError);
   const [pending, setPending] = useState(false);
@@ -547,6 +600,34 @@ function AssignmentBuilder({
   const [confirmAction, setConfirmAction] = useState<
     'publish' | 'archive' | 'delete' | null
   >(null);
+
+  useEffect(() => {
+    if (
+      !canCustomizeProblems ||
+      assignment.status !== 'draft' ||
+      items.length === 0
+    ) {
+      return;
+    }
+    let active = true;
+    void listAssignmentProblemSlots(items).then((result) => {
+      if (!active) return;
+      if (!result.ok) {
+        setProblemSlotLoadError(true);
+        return;
+      }
+      const grouped = groupAssignmentProblemSlots(result.value, items);
+      if (!grouped) {
+        setProblemSlotLoadError(true);
+        return;
+      }
+      setProblemSlotsByItem(grouped);
+      setProblemSlotLoadError(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [assignment.status, canCustomizeProblems, items]);
 
   const loadItems = useCallback(async () => {
     setLoadingItems(true);
@@ -617,6 +698,40 @@ function AssignmentBuilder({
     );
   };
 
+  const customizeProblems = async (item: AssignmentItemSummary) => {
+    if (!editable || !canCustomizeProblems || pending) return;
+    if (problemEditorItemId === item.id) {
+      setProblemEditorItemId(null);
+      return;
+    }
+    setPending(true);
+    setError('');
+    const prepared = await prepareAssignmentProblemSlots(assignment.id);
+    if (!prepared.ok) {
+      setPending(false);
+      setError(prepared.error.message);
+      return;
+    }
+    const refreshedItems = await listAssignmentItems(assignment.id);
+    setPending(false);
+    if (!refreshedItems.ok) {
+      setError(refreshedItems.error.message);
+      return;
+    }
+    const grouped = groupAssignmentProblemSlots(
+      prepared.value,
+      refreshedItems.value,
+    );
+    if (!grouped || !grouped.has(item.id)) {
+      setError('The assignment problem list could not be loaded. Retry.');
+      return;
+    }
+    setItems(refreshedItems.value);
+    setProblemSlotsByItem(grouped);
+    setProblemSlotLoadError(false);
+    setProblemEditorItemId(item.id);
+  };
+
   const saveMetadata = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (pending) return;
@@ -682,8 +797,24 @@ function AssignmentBuilder({
     item: AssignmentItemSummary,
     key: AssignmentActivityKey,
     count: number,
+    confirmCustomizationReset = false,
   ) => {
     if (!editable || pending) return;
+    const generationChanged =
+      key !== item.activity_key ||
+      count !== item.problem_count ||
+      difficultyProfile !== (item.difficulty_profile ?? 'auto') ||
+      variantPolicy !== (item.variant_policy ?? 'individualized');
+    const hasProblemCustomization =
+      (problemSlotsByItem.get(item.id)?.length ?? 0) > 0;
+    if (
+      generationChanged &&
+      hasProblemCustomization &&
+      !confirmCustomizationReset
+    ) {
+      setResetSlotsConfirmationItemId(item.id);
+      return;
+    }
     setPending(true);
     setError('');
     const result = await updateAssignmentItem(item.id, {
@@ -702,6 +833,15 @@ function AssignmentBuilder({
         existing.id === item.id ? result.value : existing,
       ),
     );
+    if (generationChanged) {
+      setProblemSlotsByItem((current) => {
+        const next = new Map(current);
+        next.delete(item.id);
+        return next;
+      });
+      if (problemEditorItemId === item.id) setProblemEditorItemId(null);
+    }
+    setResetSlotsConfirmationItemId(null);
     resetEditor();
   };
 
@@ -743,6 +883,12 @@ function AssignmentBuilder({
     setItems((current) =>
       current.filter((candidate) => candidate.id !== item.id),
     );
+    setProblemSlotsByItem((current) => {
+      const next = new Map(current);
+      next.delete(item.id);
+      return next;
+    });
+    if (problemEditorItemId === item.id) setProblemEditorItemId(null);
     if (editingItemId === item.id) resetEditor();
   };
 
@@ -1075,8 +1221,47 @@ function AssignmentBuilder({
                 </button>
               ) : null}
             </div>
+            {editingItem && resetSlotsConfirmationItemId === editingItem.id ? (
+              <div className="assignment-slot-reset-confirmation" role="alert">
+                <p>
+                  Changing this block resets its individual problem
+                  customizations.
+                </p>
+                <div className="practice-block-actions">
+                  <button
+                    className="button button-quiet"
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      void saveBlock(
+                        editingItem,
+                        activityKey,
+                        parsedProblemCount,
+                        true,
+                      )
+                    }
+                  >
+                    Continue and reset problems
+                  </button>
+                  <button
+                    className="inline-link"
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setResetSlotsConfirmationItemId(null)}
+                  >
+                    Keep customizations
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </form>
         )}
+        {problemSlotLoadError && canCustomizeProblems ? (
+          <p className="form-error" role="alert">
+            Individual problem settings could not be loaded. Reload this draft
+            to try again.
+          </p>
+        ) : null}
         {loadingItems ? (
           <p className="list-status" role="status">
             Loading practice blocks…
@@ -1114,6 +1299,26 @@ function AssignmentBuilder({
                   void moveBlock(current, direction)
                 }
                 onRemove={(target) => void removeBlock(target)}
+                canCustomize={editable && canCustomizeProblems}
+                customized={(problemSlotsByItem.get(item.id)?.length ?? 0) > 0}
+                onCustomize={(target) => void customizeProblems(target)}
+                customization={
+                  editable &&
+                  canCustomizeProblems &&
+                  problemEditorItemId === item.id ? (
+                    <AssignmentProblemSlotEditor
+                      item={item}
+                      slots={problemSlotsByItem.get(item.id) ?? []}
+                      onSlotsChange={(updated) =>
+                        setProblemSlotsByItem((current) => {
+                          const next = new Map(current);
+                          next.set(item.id, updated);
+                          return next;
+                        })
+                      }
+                    />
+                  ) : null
+                }
               />
             ))}
           </ol>

@@ -61,6 +61,7 @@ describe('workspace entitlement service', () => {
         'advanced_analytics',
         'result_export',
         'larger_class_limits',
+        'advanced_assignment_editing',
       ],
     };
     const rpc = vi
