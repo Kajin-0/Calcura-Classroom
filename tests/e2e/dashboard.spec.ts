@@ -313,6 +313,85 @@ test('dashboard has stable loading, recoverable error, and calm empty states', a
   await expect(page.getByRole('textbox', { name: 'Class name' })).toBeVisible();
 });
 
+test('branded shell preserves keyboard navigation and readable contrast', async ({
+  page,
+}) => {
+  await mockLocalSession(page);
+  await page.goto('/app');
+  const brand = page.getByRole('link', {
+    name: 'Calcura Classroom',
+    exact: true,
+  });
+  const navigation = page.getByRole('navigation', {
+    name: 'Teacher navigation',
+  });
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(brand).toBeVisible();
+    await brand.focus();
+    await page.keyboard.press('Tab');
+    const active = navigation.getByRole('link', {
+      name: 'Dashboard',
+      exact: true,
+    });
+    await expect(active).toBeFocused();
+    await expect(active).toHaveAttribute('aria-current', 'page');
+    await expect(
+      navigation.getByRole('link', { name: 'Classes', exact: true }),
+    ).toBeVisible();
+    await expect(
+      navigation.getByRole('link', { name: 'Billing', exact: true }),
+    ).toBeVisible();
+
+    const contrast = await page.evaluate(() => {
+      const luminance = (color: string) => {
+        const channels = color
+          .match(/[\d.]+/g)!
+          .slice(0, 3)
+          .map(Number)
+          .map((channel) => {
+            const value = channel / 255;
+            return value <= 0.04045
+              ? value / 12.92
+              : ((value + 0.055) / 1.055) ** 2.4;
+          });
+        return (
+          channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+        );
+      };
+      const ratio = (foreground: string, background: string) => {
+        const first = luminance(foreground);
+        const second = luminance(background);
+        return (
+          (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05)
+        );
+      };
+      const shell = getComputedStyle(
+        document.querySelector('.workspace-header')!,
+      );
+      const active = getComputedStyle(
+        document.querySelector('.workspace-nav a.active')!,
+      );
+      const textRatios = [
+        ...document.querySelectorAll(
+          '.workspace-header .workspace-brand-name, .workspace-brand-name > span, .workspace-plan-label, .workspace-header .button, .workspace-nav a:not(.active)',
+        ),
+      ].map((element) =>
+        ratio(getComputedStyle(element).color, shell.backgroundColor),
+      );
+      return {
+        text: [...textRatios, ratio(active.color, active.backgroundColor)],
+        focus: ratio(active.outlineColor, active.backgroundColor),
+        outline: active.outlineStyle,
+      };
+    });
+    for (const ratio of contrast.text)
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    expect(contrast.focus).toBeGreaterThanOrEqual(3);
+    expect(contrast.outline).not.toBe('none');
+  }
+});
+
 test('reduced motion disables dashboard entrance and chart transitions', async ({
   page,
 }) => {

@@ -70,3 +70,61 @@ mutate the active preview database.
 Database and Calcura math certification were not rerun: no data contract, query,
 schema, generator, preview message contract, or student source changed in this pass.
 Product-owner visual review remains the next step at `http://127.0.0.1:5174`.
+
+## Phase 10.5b brand alignment
+
+Continues from Phase 10.5 at `1617670c621222eee61a8321a9a93cece876a485`
+on `feat/classroom-phase10-5b-brand-alignment`. No Phase 10 history is replaced.
+
+The public [Classroom page](https://calcura.study/classroom/) was inspected in
+Chromium at 1440 × 1000 and 390 × 844, including computed styles of its portal
+preview. Its navy ink/primary buttons (`#0b1730`), cool canvas (`#f5f8fc`),
+white surfaces, quiet blue-gray (`#edf3fa`), borders (`#dfe7f1`, `#ccd8e7`),
+blue accent (`#1769e0`, `#0f54ba`), and chart blue (`#2b6fce`) define the app
+palette. Body metadata uses the site's darker slate `#53647b` for contrast.
+
+- The app deliberately uses the site's navy as a compact header surface, not
+  its marketing layout. The integral mark/lowercase wordmark identifies Calcura;
+  the link keeps its accessible name and route. Light header text/focus colors
+  are adapted to the dark surface. Active navigation retains `aria-current` and
+  gains a blue underline and tinted background.
+- Warm canvas `#f7f7f5`, gray-green quiet/selected surfaces, olive charts, and the
+  tan outcome track are removed. Primary actions remain navy, as on the public
+  page; blue marks focus, selection, links, progress, and the completion metric.
+- Classes and assignments use shared white list surfaces with dividers, not
+  raised cards per row. The problem editor uses a cool inset workspace, a blue
+  selected row, and a navy-edged white preview. Billing stays a settings page.
+- Plan labels (including Pro), locks, and lifecycle badges remain neutral.
+  No colored upsell treatment, gradient, new widget, shadow system, or motion is
+  added. The Phase 10.5 typography, loading states, motion, accessibility, and
+  responsive behavior remain in place.
+
+`UI_REVIEW_DIR=/tmp/calcura-phase10-5b-review npm run test:e2e` captures final
+screens beside the earlier Phase 10.5 screenshots in `/tmp/calcura-phase10-5-review`.
+Public-page reference captures are in `/tmp/calcura-phase10-5b-public`.
+These are disposable, untracked review artifacts, not golden-image assertions.
+The additional shell regression checks keyboard navigation, accessible branding,
+active-page semantics, text contrast ≥4.5:1, and focus contrast ≥3:1 at desktop
+and mobile widths. It does not assert arbitrary color literals or pixel spacing.
+
+### Phase 10.5b verification
+
+Sequential checks (no database, Stripe, or Calcura math jobs):
+
+- `npm run format:check`, `npm run lint`, `npm run typecheck`: pass.
+- `npm test`: 20 files / 132 tests pass.
+- `UI_REVIEW_DIR=/tmp/calcura-phase10-5b-review npm run test:e2e -- tests/e2e/dashboard.spec.ts`:
+  5 focused tests pass.
+- `UI_REVIEW_DIR=/tmp/calcura-phase10-5b-review npm run test:e2e`: 13 tests pass,
+  one Chromium worker; six review widths without horizontal page overflow.
+- `npm run build`: pass; JS 590.52 kB (163.45 kB gzip), CSS 46.24 kB
+  (8.72 kB gzip). Compared with Phase 10.5: +0.25 kB JS / +2.63 kB CSS;
+  no dependency change. The existing >500 kB bundle advisory remains.
+- `git diff --check`: pass.
+
+Inspected final dashboard desktop/mobile against both the public preview and
+the Phase 10.5 captures, plus class list, draft builder, published analytics,
+problem editor desktop/mobile, and Free/Pro billing. Browser fixtures retain the
+existing API/preview contracts; no real billing or data mutation was performed.
+The existing port-5174 preview serves the new palette without restarting it.
+Product-owner visual acceptance is still pending.
