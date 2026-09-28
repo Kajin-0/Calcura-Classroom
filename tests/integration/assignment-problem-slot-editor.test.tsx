@@ -74,9 +74,7 @@ describe('assignment problem slot editor', () => {
       screen.getByRole('heading', { name: 'Preview · Problem 2' }),
     ).toBeVisible();
     expect(
-      screen.getByText(
-        'Set VITE_CALCURA_APP_ORIGIN to enable Calcura preview.',
-      ),
+      screen.getByText('Set VITE_CALCURA_APP_URL to enable Calcura preview.'),
     ).toBeVisible();
   });
 

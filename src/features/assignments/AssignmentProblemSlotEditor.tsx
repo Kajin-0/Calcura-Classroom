@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useReorderMotion } from '../../lib/ui/useReorderMotion';
+import { resolveCalcuraPreviewTarget } from './calcuraPreviewTarget';
 import type { AssignmentItemSummary } from './assignmentService';
 import {
   regenerateAssignmentProblemSlot,
@@ -38,24 +39,6 @@ interface PreviewIntent {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-function getCalcuraOrigin(): string | null {
-  const value = import.meta.env.VITE_CALCURA_APP_ORIGIN?.trim();
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    if (
-      (url.protocol !== 'http:' && url.protocol !== 'https:') ||
-      url.username ||
-      url.password
-    ) {
-      return null;
-    }
-    return url.origin;
-  } catch {
-    return null;
-  }
-}
-
 function previewRequestId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -75,7 +58,11 @@ export function AssignmentProblemSlotEditor({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const activeRequestId = useRef('');
   const previewReadyRef = useRef(false);
-  const origin = getCalcuraOrigin();
+  const previewTarget = resolveCalcuraPreviewTarget({
+    VITE_CALCURA_APP_URL: import.meta.env.VITE_CALCURA_APP_URL,
+    VITE_CALCURA_APP_ORIGIN: import.meta.env.VITE_CALCURA_APP_ORIGIN,
+  });
+  const origin = previewTarget?.origin ?? null;
   const [selectedSlotId, setSelectedSlotId] = useState(slots[0]?.id ?? '');
   const [previewReady, setPreviewReady] = useState(false);
   const [previewState, setPreviewState] = useState<
@@ -102,9 +89,7 @@ export function AssignmentProblemSlotEditor({
     (slot) => slot.id === effectiveSelectedSlotId,
   );
   const selectedSlot = selectedIndex >= 0 ? sortedSlots[selectedIndex] : null;
-  const previewUrl = origin
-    ? new URL('/?classroomProblemPreview=1', origin).toString()
-    : null;
+  const previewUrl = previewTarget?.appUrl ?? null;
   const previewIntent = useMemo<PreviewIntent | null>(() => {
     if (
       !selectedSlot ||
@@ -433,7 +418,7 @@ export function AssignmentProblemSlotEditor({
           </p>
           {!previewUrl ? (
             <p role="alert">
-              Set VITE_CALCURA_APP_ORIGIN to enable Calcura preview.
+              Set VITE_CALCURA_APP_URL to enable Calcura preview.
             </p>
           ) : (
             <iframe
