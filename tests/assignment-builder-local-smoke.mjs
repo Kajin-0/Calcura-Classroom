@@ -211,6 +211,16 @@ async function runCase(caseSpec, session) {
       ).toHaveText(
         `${index + 1} ${index === 0 ? 'block' : 'blocks'} · ${expectedTotal} problems total`,
       );
+      const disclosureMotion = await page
+        .locator('.assignment-generation-options')
+        .evaluate((element) => {
+          const duration = globalThis
+            .getComputedStyle(element)
+            .getPropertyValue('--motion-base');
+          return Number.parseFloat(duration) || 0;
+        });
+      if (disclosureMotion > 0)
+        await page.waitForTimeout(disclosureMotion + 30);
       const database = await rows(assignmentId);
       const rendered = await page.locator('.practice-block-list > li').count();
       const statusText = await page
@@ -224,9 +234,15 @@ async function runCase(caseSpec, session) {
         .getByRole('button', { name: 'Add block to assignment' })
         .boundingBox();
       assert.ok(addButtonBounds, 'Add control must remain visible.');
-      if (index === 0) firstButtonY = addButtonBounds.y;
+      // Chromium may adjust scroll as the list grows; compare layout position.
+      const addButtonDocumentY = await page
+        .getByRole('button', { name: 'Add block to assignment' })
+        .evaluate(
+          (element) => element.getBoundingClientRect().top + globalThis.scrollY,
+        );
+      if (index === 0) firstButtonY = addButtonDocumentY;
       assert.ok(
-        Math.abs(addButtonBounds.y - firstButtonY) <= 1,
+        Math.abs(addButtonDocumentY - firstButtonY) <= 1,
         'Adding a block must not move the Add control away from the pointer.',
       );
       snapshots.push({
