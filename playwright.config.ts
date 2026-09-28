@@ -21,6 +21,7 @@ export default defineConfig({
     env: {
       VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
       VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_playwright_placeholder',
+      VITE_CALCURA_APP_ORIGIN: 'http://127.0.0.1:4173',
     },
   },
 });
