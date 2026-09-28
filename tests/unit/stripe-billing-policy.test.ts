@@ -3,9 +3,15 @@ import {
   canManageWorkspaceBilling,
   decideEntitlement,
   parseBillingInterval,
+  parseStripeBillingConfiguration,
+  parseStripeMode,
   parseWorkspaceId,
   priceExpectation,
+  stripeCheckoutSessionMatchesMode,
+  stripeObjectMatchesMode,
   stripePriceMatches,
+  stripeProductMatches,
+  stripeSecretMatchesMode,
 } from '../../supabase/functions/_shared/billingPolicy';
 
 const now = new Date('2026-09-27T12:00:00.000Z');
@@ -30,7 +36,7 @@ describe('Stripe billing policy', () => {
     expect(canManageWorkspaceBilling(null)).toBe(false);
   });
 
-  it('locks the configured amounts, currency, recurrence, active status, and test mode', () => {
+  it('locks the configured amounts, currency, recurrence, active status, product, and mode', () => {
     expect(priceExpectation('monthly')).toEqual({
       interval: 'month',
       intervalCount: 1,
@@ -42,18 +48,27 @@ describe('Stripe billing policy', () => {
       id: 'price_test_monthly',
       active: true,
       livemode: false,
+      product: 'prod_test_pro',
       currency: 'usd',
       unit_amount: 1900,
       recurring: { interval: 'month', interval_count: 1 },
     };
-    expect(stripePriceMatches('monthly', monthly, 'price_test_monthly')).toBe(
-      true,
-    );
+    expect(
+      stripePriceMatches(
+        'monthly',
+        monthly,
+        'price_test_monthly',
+        'prod_test_pro',
+        'test',
+      ),
+    ).toBe(true);
     expect(
       stripePriceMatches(
         'monthly',
         { ...monthly, unit_amount: 100 },
         'price_test_monthly',
+        'prod_test_pro',
+        'test',
       ),
     ).toBe(false);
     expect(
@@ -61,6 +76,8 @@ describe('Stripe billing policy', () => {
         'monthly',
         { ...monthly, livemode: true },
         'price_test_monthly',
+        'prod_test_pro',
+        'test',
       ),
     ).toBe(false);
     expect(
@@ -68,6 +85,154 @@ describe('Stripe billing policy', () => {
         'monthly',
         { ...monthly, recurring: { interval: 'year', interval_count: 1 } },
         'price_test_monthly',
+        'prod_test_pro',
+        'test',
+      ),
+    ).toBe(false);
+    expect(
+      stripePriceMatches(
+        'monthly',
+        { ...monthly, product: 'prod_wrong' },
+        'price_test_monthly',
+        'prod_test_pro',
+        'test',
+      ),
+    ).toBe(false);
+    expect(
+      stripePriceMatches(
+        'monthly',
+        monthly,
+        'price_unconfigured',
+        'prod_test_pro',
+        'test',
+      ),
+    ).toBe(false);
+  });
+
+  it('accepts internally consistent test/live configuration and rejects mixed modes', () => {
+    expect(parseStripeMode('test')).toBe('test');
+    expect(parseStripeMode('live')).toBe('live');
+    expect(parseStripeMode('production')).toBeNull();
+    expect(stripeSecretMatchesMode('sk_test_local', 'test')).toBe(true);
+    expect(stripeSecretMatchesMode('sk_live_local', 'live')).toBe(true);
+    expect(stripeSecretMatchesMode('sk_test_local', 'live')).toBe(false);
+    expect(stripeSecretMatchesMode('sk_live_local', 'test')).toBe(false);
+    expect(
+      parseStripeBillingConfiguration({
+        mode: 'test',
+        secretKey: 'sk_test_local',
+        productId: 'prod_test',
+        monthlyPriceId: 'price_test_monthly',
+        annualPriceId: 'price_test_annual',
+      })?.mode,
+    ).toBe('test');
+    expect(
+      parseStripeBillingConfiguration({
+        mode: 'live',
+        secretKey: 'sk_live_local',
+        productId: 'prod_live',
+        monthlyPriceId: 'price_live_monthly',
+        annualPriceId: 'price_live_annual',
+      })?.mode,
+    ).toBe('live');
+    expect(
+      parseStripeBillingConfiguration({
+        mode: 'live',
+        secretKey: 'sk_test_local',
+        productId: 'prod_live',
+        monthlyPriceId: 'price_live_monthly',
+        annualPriceId: 'price_live_annual',
+      }),
+    ).toBeNull();
+    expect(
+      parseStripeBillingConfiguration({
+        mode: 'test',
+        secretKey: 'sk_test_local',
+        productId: 'prod_test',
+        monthlyPriceId: 'price_same',
+        annualPriceId: 'price_same',
+      }),
+    ).toBeNull();
+    expect(
+      parseStripeBillingConfiguration({
+        mode: 'test',
+        secretKey: 'sk_test_local',
+        productId: 'prod_test',
+        monthlyPriceId: 'price_test_monthly',
+        annualPriceId: 'not-a-price-id',
+      }),
+    ).toBeNull();
+    expect(stripeObjectMatchesMode({ livemode: true }, 'live')).toBe(true);
+    expect(stripeObjectMatchesMode({ livemode: true }, 'test')).toBe(false);
+    expect(
+      stripeCheckoutSessionMatchesMode(
+        { id: 'cs_test_expected', livemode: false },
+        'test',
+      ),
+    ).toBe(true);
+    expect(
+      stripeCheckoutSessionMatchesMode(
+        { id: 'cs_live_expected', livemode: true },
+        'live',
+      ),
+    ).toBe(true);
+    expect(
+      stripeCheckoutSessionMatchesMode(
+        { id: 'cs_live_wrong', livemode: true },
+        'test',
+      ),
+    ).toBe(false);
+  });
+
+  it('requires the configured active Pro Product in the configured mode', () => {
+    const product = { id: 'prod_expected', active: true, livemode: true };
+    expect(stripeProductMatches(product, 'prod_expected', 'live')).toBe(true);
+    expect(stripeProductMatches(product, 'prod_other', 'live')).toBe(false);
+    expect(stripeProductMatches(product, 'prod_expected', 'test')).toBe(false);
+    expect(
+      stripeProductMatches(
+        { ...product, active: false },
+        'prod_expected',
+        'live',
+      ),
+    ).toBe(false);
+  });
+
+  it('accepts a live-mode monthly Price only when it matches the live Product and $19 cadence', () => {
+    const price = {
+      id: 'price_live_monthly',
+      active: true,
+      livemode: true,
+      product: 'prod_live_pro',
+      currency: 'usd',
+      unit_amount: 1900,
+      recurring: { interval: 'month', interval_count: 1 },
+    };
+    expect(
+      stripePriceMatches(
+        'monthly',
+        price,
+        'price_live_monthly',
+        'prod_live_pro',
+        'live',
+      ),
+    ).toBe(true);
+    expect(
+      stripePriceMatches(
+        'monthly',
+        { ...price, livemode: false },
+        'price_live_monthly',
+        'prod_live_pro',
+        'live',
+      ),
+    ).toBe(false);
+    expect(
+      stripePriceMatches(
+        'monthly',
+        price,
+        'price_unconfigured',
+        'prod_live_pro',
+        'live',
       ),
     ).toBe(false);
   });

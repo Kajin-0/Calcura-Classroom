@@ -1,18 +1,19 @@
 import Stripe from 'stripe';
 import { describe, expect, it, vi } from 'vitest';
+import { stripeObjectMatchesMode } from '../../supabase/functions/_shared/billingPolicy';
 import { verifyStripeWebhookEvent } from '../../supabase/functions/_shared/verifyWebhook';
 
 const signingSecret = 'whsec_local_phase9_test_secret';
 const stripe = new Stripe('sk_test_phase9_unit_key');
 
-function payload(): string {
+function payload(livemode = false): string {
   return `${JSON.stringify({
     id: 'evt_phase9signature01',
     object: 'event',
     api_version: '2025-06-30.basil',
     created: 1790500000,
     data: { object: { id: 'sub_phase9signature' } },
-    livemode: false,
+    livemode,
     pending_webhooks: 1,
     request: null,
     type: 'customer.subscription.updated',
@@ -85,5 +86,21 @@ describe('Stripe raw-body signature boundary', () => {
     await expect(
       verifyStripeWebhookEvent(modified, signature, signingSecret, verify),
     ).rejects.toThrow(/signature/i);
+  });
+
+  it('rejects a correctly signed event from the other configured mode', async () => {
+    const rawBody = payload(true);
+    const signature = signatureFor(rawBody);
+    const event = await verifyStripeWebhookEvent(
+      rawBody,
+      signature,
+      signingSecret,
+      (body, header, secret) =>
+        stripe.webhooks.constructEventAsync(body, header, secret),
+    );
+
+    expect(event.livemode).toBe(true);
+    expect(stripeObjectMatchesMode(event, 'test')).toBe(false);
+    expect(stripeObjectMatchesMode(event, 'live')).toBe(true);
   });
 });
