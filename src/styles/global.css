@@ -7,8 +7,8 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  color: #20211f;
-  background: #f7f7f5;
+  color: var(--color-ink);
+  background: var(--color-canvas);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -16,14 +16,28 @@
   font-optical-sizing: auto;
   font-weight: 400;
 
-  --color-ink: #20211f;
-  --color-muted: #656660;
-  --color-border: rgb(32 33 31 / 10%);
-  --color-border-strong: rgb(32 33 31 / 20%);
+  /* Shared with the public Classroom palette; no marketing gradients. */
+  --color-ink: #0b1730;
+  --color-ink-secondary: #1f2d44;
+  --color-muted: #53647b;
+  --color-canvas: #f5f8fc;
+  --color-border: #dfe7f1;
+  --color-border-strong: #ccd8e7;
   --color-surface: #fff;
-  --color-quiet: #f1f1ee;
-  --color-hover: #f5f5f2;
-  --color-focus: #393b37;
+  --color-quiet: #edf3fa;
+  --color-hover: #f5f8fc;
+  --color-accent: #1769e0;
+  --color-accent-strong: #0f54ba;
+  --color-accent-soft: #edf5ff;
+  --color-accent-border: #cfe0f4;
+  --color-chart: #2b6fce;
+  --color-chart-muted: #667892;
+  --color-focus: var(--color-accent);
+  --color-on-dark: #fff;
+  --color-on-dark-muted: #b8c8de;
+  --color-on-dark-focus: #93bfff;
+  --color-on-dark-border: #425575;
+  --color-nav-active: #193354;
   --color-danger: #8c3434;
   --space-1: 4px;
   --space-2: 8px;
@@ -116,7 +130,8 @@ select[aria-invalid='true'] {
   border-color: var(--color-danger);
 }
 ::selection {
-  background: #dfe3dc;
+  background: var(--color-accent-border);
+  color: var(--color-ink);
 }
 
 .auth-page {
@@ -177,8 +192,8 @@ h1 {
   color: var(--color-ink);
 }
 .form-stack input:disabled {
-  background: #f0f0ed;
-  color: #74756f;
+  background: var(--color-quiet);
+  color: var(--color-muted);
 }
 .button {
   display: inline-flex;
@@ -209,7 +224,7 @@ h1 {
   color: #fff;
 }
 .button-primary:hover:not(:disabled) {
-  background: #373934;
+  background: var(--color-ink-secondary);
 }
 .button-quiet {
   background: transparent;
@@ -266,8 +281,56 @@ h1 {
   align-items: center;
   justify-content: space-between;
   padding: 10px clamp(20px, 4vw, 64px);
-  border-bottom: 1px solid var(--color-border);
-  background: #fff;
+  border-bottom: 1px solid var(--color-ink-secondary);
+  background: var(--color-ink);
+  color: var(--color-on-dark);
+}
+.workspace-header > .wordmark {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-on-dark);
+}
+.workspace-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 36px;
+  border: 1px solid var(--color-on-dark-border);
+  border-radius: var(--radius-control);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+}
+.workspace-brand-name {
+  display: grid;
+  gap: 2px;
+  font-size: 19px;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.workspace-brand-name > span {
+  color: var(--color-on-dark-muted);
+  font-size: 11px;
+  font-weight: 450;
+  letter-spacing: 0.025em;
+}
+.workspace-header :focus-visible {
+  outline-color: var(--color-on-dark-focus);
+}
+.workspace-header .account-email,
+.workspace-header .button-quiet {
+  color: var(--color-on-dark-muted);
+}
+.workspace-header .button-quiet:hover:not(:disabled) {
+  background: var(--color-ink-secondary);
+  color: var(--color-on-dark);
+}
+.workspace-header .workspace-plan-label {
+  border-color: var(--color-on-dark-border);
+  color: var(--color-on-dark-muted);
 }
 .workspace-content {
   width: min(100% - 64px, 1080px);
@@ -320,26 +383,33 @@ h1 {
   display: flex;
   align-self: stretch;
   align-items: center;
-  gap: var(--space-6);
+  gap: var(--space-2);
   margin: 0 auto 0 clamp(22px, 4vw, 58px);
 }
 .workspace-nav a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  padding: 0 var(--space-3);
   border-bottom: 2px solid transparent;
-  color: var(--color-muted);
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
+  color: var(--color-on-dark-muted);
   font-size: 0.87rem;
   font-weight: 500;
   text-decoration: none;
   transition:
     color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
     border-color var(--motion-fast) var(--ease-standard);
 }
-.workspace-nav a:hover,
+.workspace-nav a:hover {
+  background: var(--color-ink-secondary);
+  color: var(--color-on-dark);
+}
 .workspace-nav a.active {
-  border-color: var(--color-focus);
-  color: var(--color-ink);
+  border-color: var(--color-on-dark-focus);
+  background: var(--color-nav-active);
+  color: var(--color-on-dark);
 }
 .account-actions {
   display: flex;
@@ -375,7 +445,7 @@ h1 {
     width: 100%;
     min-height: 38px;
     margin: 0;
-    gap: 22px;
+    gap: var(--space-2);
   }
   .workspace-nav a {
     min-height: 38px;
@@ -560,11 +630,17 @@ h1 {
 .class-list {
   margin: 13px 0 0;
   padding: 0;
-  border-top: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
   list-style: none;
 }
 .class-list li {
   border-bottom: 1px solid var(--color-border);
+}
+.class-list li:last-child,
+.assignment-list li:last-child {
+  border-bottom: 0;
 }
 .class-row {
   min-height: 70px;
@@ -577,7 +653,11 @@ h1 {
   text-decoration: none;
 }
 .class-row:hover {
-  background: var(--color-quiet);
+  background: var(--color-accent-soft);
+}
+.class-row:hover .row-open,
+.class-row:focus-visible .row-open {
+  color: var(--color-accent-strong);
 }
 .class-row-name {
   min-width: 0;
@@ -700,7 +780,7 @@ h1 {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--color-ink);
+  color: var(--color-accent-strong);
   font: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -756,10 +836,10 @@ h1 {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #767770;
+  background: var(--color-muted);
 }
 .status-indicator.is-active {
-  background: #2e7051;
+  background: var(--color-chart);
 }
 .detail-sections {
   max-width: 960px;
@@ -864,7 +944,9 @@ h1 {
 .assignment-list {
   margin: 0;
   padding: 0;
-  border-top: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
   list-style: none;
 }
 .assignment-list li {
@@ -876,7 +958,7 @@ h1 {
 }
 .assignment-list-entry:hover,
 .assignment-list-entry:focus-within {
-  background: var(--color-hover);
+  background: var(--color-accent-soft);
 }
 .assignment-list-main {
   display: flex;
@@ -896,7 +978,7 @@ h1 {
   text-decoration: none;
 }
 .assignment-row:hover {
-  background: var(--color-quiet);
+  background: transparent;
 }
 .assignment-row-title {
   min-width: 0;
@@ -936,7 +1018,7 @@ h1 {
 }
 .inline-link:hover:not(:disabled),
 .text-button:hover:not(:disabled) {
-  color: var(--color-ink);
+  color: var(--color-accent-strong);
 }
 .assignment-row-actions .inline-link:hover:not(:disabled),
 .practice-block-actions .inline-link:hover:not(:disabled),
@@ -1225,7 +1307,7 @@ h1 {
   font-size: 0.86rem;
 }
 .practice-block-actions .inline-link:disabled {
-  color: #85867f;
+  color: var(--color-muted);
   cursor: not-allowed;
 }
 .danger-link,
@@ -1288,7 +1370,7 @@ h1 {
   gap: var(--space-5);
   margin-top: var(--space-5);
   padding: var(--space-6);
-  border-top: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-panel);
   background: var(--color-quiet);
   animation: surface-enter var(--motion-base) var(--ease-standard) both;
@@ -1338,8 +1420,9 @@ h1 {
     border-color var(--motion-fast) var(--ease-standard);
 }
 .problem-slot-row[data-selected='true'] {
-  border-color: var(--color-border-strong);
-  background: #e8eae5;
+  border-color: var(--color-chart);
+  background: var(--color-accent-soft);
+  box-shadow: inset 3px 0 0 var(--color-chart);
 }
 .problem-slot-row:focus-within {
   border-color: var(--color-focus);
@@ -1393,7 +1476,8 @@ h1 {
   min-width: 0;
   align-self: start;
   padding: var(--space-5);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
+  border-top: 3px solid var(--color-ink);
   border-radius: var(--radius-panel);
   background: var(--color-surface);
 }
@@ -1573,7 +1657,7 @@ h1 {
   height: 12px;
   width: 80%;
   border-radius: 3px;
-  background: #e5e6e1;
+  background: var(--color-border);
 }
 .loading-state-lines span:first-child {
   width: 36%;
@@ -1669,7 +1753,10 @@ h1 {
   .workspace-nav {
     grid-area: 2 / 1;
     width: auto;
-    gap: var(--space-5);
+    gap: var(--space-1);
+  }
+  .workspace-nav a {
+    padding-inline: var(--space-2);
   }
   .account-actions {
     display: contents;

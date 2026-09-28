@@ -21,8 +21,13 @@ export function TeacherLayout() {
         Skip to content
       </a>
       <header className="workspace-header">
-        <Link className="wordmark" to="/app">
-          Calcura Classroom
+        <Link className="wordmark" to="/app" aria-label="Calcura Classroom">
+          <span className="workspace-brand-mark" aria-hidden="true">
+            ∫
+          </span>
+          <span className="workspace-brand-name" aria-hidden="true">
+            calcura<span>Classroom</span>
+          </span>
         </Link>
         <nav className="workspace-nav" aria-label="Teacher navigation">
           <NavLink to="/app" end>

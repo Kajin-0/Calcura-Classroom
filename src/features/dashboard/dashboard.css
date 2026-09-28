@@ -1,5 +1,5 @@
 .dashboard-page {
-  --dashboard-accent: #526558;
+  --dashboard-accent: var(--color-chart);
   width: min(100% - 64px, 1248px);
   margin: var(--space-10) auto 76px;
 }
@@ -89,6 +89,12 @@
   color: var(--color-muted);
   font-size: 0.79rem;
   line-height: 1.35;
+}
+.dashboard-kpi:last-child {
+  background: var(--color-accent-soft);
+}
+.dashboard-kpi:last-child dd {
+  color: var(--color-accent-strong);
 }
 .dashboard-primary-grid,
 .dashboard-secondary-grid {
@@ -213,7 +219,7 @@
   height: 8px;
   overflow: hidden;
   border-radius: 999px;
-  background: #e9ede8;
+  background: var(--color-quiet);
 }
 .dashboard-rate-fill,
 .dashboard-outcome-track > span {
@@ -227,7 +233,7 @@
   background: var(--dashboard-accent);
 }
 .dashboard-rate-fill-muted {
-  background: #7a857c;
+  background: var(--color-chart-muted);
 }
 .dashboard-chart-caption {
   display: block;
@@ -251,7 +257,7 @@
 }
 .dashboard-outcome-track {
   height: 12px;
-  background: #e5d9cf;
+  background: var(--color-border-strong);
 }
 .dashboard-outcome-legend {
   display: flex;
@@ -282,7 +288,7 @@
   line-height: 1.45;
 }
 .dashboard-section-link {
-  color: var(--color-ink);
+  color: var(--color-accent-strong);
   font-size: 0.84rem;
   font-weight: 500;
   text-decoration: none;
@@ -294,26 +300,32 @@
 }
 .dashboard-class-list,
 .dashboard-assignment-list {
-  border-top: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
 }
 .dashboard-class-list li,
 .dashboard-assignment-list li {
   border-bottom: 1px solid var(--color-border);
+}
+.dashboard-class-list li:last-child,
+.dashboard-assignment-list li:last-child {
+  border-bottom: 0;
 }
 .dashboard-class-row,
 .dashboard-assignment-row {
   display: grid;
   align-items: center;
   min-width: 0;
-  margin-inline: -10px;
-  padding: 12px 10px;
+  margin-inline: 0;
+  padding: var(--space-4);
   border-radius: 5px;
   text-decoration: none;
   transition: background-color var(--motion-fast) var(--ease-standard);
 }
 .dashboard-class-row:hover,
 .dashboard-assignment-row:hover {
-  background: var(--color-quiet);
+  background: var(--color-accent-soft);
 }
 .dashboard-class-row {
   grid-template-columns: minmax(100px, 1.6fr) repeat(4, minmax(64px, 0.7fr));
@@ -466,7 +478,7 @@
   height: 11px;
   margin: 0 0 15px;
   border-radius: 4px;
-  background: #e9eae6;
+  background: var(--color-border);
 }
 .dashboard-skeleton-line.short {
   width: 43%;
