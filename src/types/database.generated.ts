@@ -756,6 +756,21 @@ export type Database = {
           updated_at: string;
         }[];
       };
+      replace_workspace_checkout_after_expire: {
+        Args: {
+          p_actor_user_id: string;
+          p_billing_interval: string;
+          p_expected_attempt_id: string;
+          p_expected_session_id: string;
+          p_workspace_id: string;
+        };
+        Returns: {
+          attempt_id: string;
+          checkout_session_id: string;
+          reservation_state: string;
+          stripe_customer_id: string;
+        }[];
+      };
       reserve_workspace_checkout: {
         Args: {
           p_actor_user_id: string;
