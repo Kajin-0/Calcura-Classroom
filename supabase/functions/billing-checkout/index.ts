@@ -2,9 +2,9 @@ import {
   canManageWorkspaceBilling,
   parseBillingInterval,
   parseWorkspaceId,
-  stripeCheckoutSessionMatchesMode,
   stripeObjectMatchesMode,
 } from '../_shared/billingPolicy.ts';
+import { validateWorkspaceCheckoutSession } from '../_shared/checkoutSession.ts';
 import {
   jsonResponse,
   logBillingEvent,
@@ -25,6 +25,26 @@ import {
   stripeObjectId,
   verifyConfiguredPrice,
 } from '../_shared/stripe.ts';
+
+interface CheckoutReservation {
+  reservation_state: string;
+  attempt_id: string | null;
+  stripe_customer_id: string | null;
+  checkout_session_id: string | null;
+}
+
+function parseReservation(data: unknown): CheckoutReservation {
+  const row = Array.isArray(data) ? data[0] : null;
+  if (
+    !row ||
+    typeof row.reservation_state !== 'string' ||
+    ![row.attempt_id, row.stripe_customer_id, row.checkout_session_id].every(
+      (value) => value === null || typeof value === 'string',
+    )
+  )
+    throw new Error('invalid_checkout_reservation');
+  return row;
+}
 
 runtime.serve(async (request) => {
   if (request.method === 'OPTIONS') return optionsResponse(request);
@@ -55,164 +75,210 @@ runtime.serve(async (request) => {
       return jsonResponse(request, { error: 'not_authorized' }, 403);
     }
 
-    const { data: reservations, error: reserveError } = await admin.rpc(
-      'reserve_workspace_checkout',
-      {
-        p_workspace_id: workspaceId,
-        p_actor_user_id: userId,
-        p_billing_interval: interval,
-      },
-    );
-    if (reserveError) throw reserveError;
-    const reservation = Array.isArray(reservations) ? reservations[0] : null;
-    if (!reservation || typeof reservation.reservation_state !== 'string') {
-      throw new Error('invalid_checkout_reservation');
-    }
-    const attemptId =
-      typeof reservation.attempt_id === 'string'
-        ? reservation.attempt_id
-        : null;
-
-    if (reservation.reservation_state === 'existing_subscription') {
-      return jsonResponse(
-        request,
-        { error: 'subscription_exists', manage_billing: true },
-        409,
-      );
-    }
-    if (reservation.reservation_state === 'in_progress') {
-      return jsonResponse(
+    const conflict = () =>
+      jsonResponse(
         request,
         { error: 'checkout_in_progress', retry: true },
         409,
       );
-    }
-
-    if (reservation.reservation_state === 'existing_session') {
-      const sessionId =
-        typeof reservation.checkout_session_id === 'string'
-          ? reservation.checkout_session_id
-          : null;
-      if (!sessionId || !attemptId) throw new Error('invalid_saved_checkout');
-      const savedSession = await stripe.checkout.sessions.retrieve(sessionId);
-      if (
-        !stripeCheckoutSessionMatchesMode(savedSession, mode) ||
-        savedSession.mode !== 'subscription'
-      ) {
-        throw new Error('invalid_saved_checkout');
+    const processing = () =>
+      jsonResponse(request, { error: 'checkout_processing', retry: true }, 409);
+    let reservation: CheckoutReservation | null = null;
+    // Includes handoffs and stale-state re-evaluations; never recurse/retry
+    // indefinitely. An uncertain Stripe operation never releases its attempt.
+    for (let evaluation = 0; evaluation < 3; evaluation += 1) {
+      if (!reservation) {
+        const { data, error } = await admin.rpc('reserve_workspace_checkout', {
+          p_workspace_id: workspaceId,
+          p_actor_user_id: userId,
+          p_billing_interval: interval,
+        });
+        if (error) throw error;
+        reservation = parseReservation(data);
       }
-      if (savedSession.status === 'open' && savedSession.url) {
-        return jsonResponse(request, { checkout_url: savedSession.url });
-      }
-      if (savedSession.status === 'complete') {
+      const attemptId = reservation.attempt_id;
+      if (reservation.reservation_state === 'existing_subscription') {
         return jsonResponse(
           request,
-          { error: 'checkout_processing', retry: true },
+          { error: 'subscription_exists', manage_billing: true },
           409,
         );
       }
-      const { error: releaseError } = await admin.rpc(
-        'release_workspace_checkout',
-        {
-          p_workspace_id: workspaceId,
-          p_attempt_id: attemptId,
-        },
-      );
-      if (releaseError) throw releaseError;
-      return jsonResponse(
-        request,
-        { error: 'checkout_expired', retry: true },
-        409,
-      );
-    }
-
-    if (reservation.reservation_state !== 'reserved' || !attemptId) {
-      throw new Error('invalid_checkout_reservation');
-    }
-
-    const priceId = await verifyConfiguredPrice(stripe, interval);
-    let customerId =
-      typeof reservation.stripe_customer_id === 'string'
-        ? reservation.stripe_customer_id
-        : null;
-    if (!customerId) {
-      const customer = await stripe.customers.create(
-        { metadata: { workspace_id: workspaceId } },
-        { idempotencyKey: `workspace-customer-${workspaceId}` },
-      );
-      if (!stripeObjectMatchesMode(customer, mode)) {
-        throw new Error('stripe_customer_mode_mismatch');
+      if (reservation.reservation_state === 'in_progress') return conflict();
+      if (reservation.reservation_state === 'unavailable') {
+        throw new Error('checkout_creation_unresolved');
       }
-      customerId = customer.id;
-      const { error: customerError } = await admin.rpc(
-        'save_workspace_stripe_customer',
-        {
+
+      if (
+        ['existing_session', 'switch_session'].includes(
+          reservation.reservation_state,
+        )
+      ) {
+        const sessionId = reservation.checkout_session_id;
+        const customerId = reservation.stripe_customer_id;
+        if (!sessionId || !attemptId || !customerId)
+          throw new Error('invalid_saved_checkout');
+        const expected = {
+          mode,
+          sessionId,
+          customerId,
+          workspaceId,
+          ...(reservation.reservation_state === 'existing_session'
+            ? { interval }
+            : {}),
+        };
+        let savedSession = await stripe.checkout.sessions.retrieve(sessionId);
+        validateWorkspaceCheckoutSession(savedSession, expected);
+        if (savedSession.status === 'complete') return processing();
+        if (savedSession.status === 'open') {
+          if (reservation.reservation_state === 'existing_session') {
+            if (!savedSession.url) throw new Error('invalid_saved_checkout');
+            return jsonResponse(request, { checkout_url: savedSession.url });
+          }
+          // Validate the target configuration before invalidating a usable URL.
+          await verifyConfiguredPrice(stripe, interval);
+          try {
+            savedSession = await stripe.checkout.sessions.expire(
+              sessionId,
+              {},
+              {
+                idempotencyKey: `workspace-checkout-expire-${attemptId}-${sessionId}`,
+              },
+            );
+          } catch {
+            // Expiration can lose to completion (or succeed with a lost reply).
+            // Only a canonical expired result allows the atomic handoff.
+            savedSession = await stripe.checkout.sessions.retrieve(sessionId);
+          }
+          validateWorkspaceCheckoutSession(savedSession, expected);
+          if (savedSession.status === 'complete') return processing();
+        }
+        if (savedSession.status !== 'expired')
+          throw new Error('checkout_expiration_unconfirmed');
+
+        const { data, error } = await admin.rpc(
+          'replace_workspace_checkout_after_expire',
+          {
+            p_workspace_id: workspaceId,
+            p_actor_user_id: userId,
+            p_expected_attempt_id: attemptId,
+            p_expected_session_id: sessionId,
+            p_billing_interval: interval,
+          },
+        );
+        if (error) throw error;
+        const replacement = parseReservation(data);
+        if (
+          !['reserved', 'stale', 'existing_subscription'].includes(
+            replacement.reservation_state,
+          )
+        ) {
+          throw new Error('invalid_checkout_replacement');
+        }
+        logBillingEvent({
+          action: 'checkout_replacement',
+          workspace_id: workspaceId,
+          billing_interval: interval,
+          result: replacement.reservation_state,
+        });
+        reservation =
+          replacement.reservation_state === 'stale' ? null : replacement;
+        continue;
+      }
+
+      if (
+        reservation.reservation_state !== 'reserved' ||
+        !attemptId ||
+        reservation.checkout_session_id
+      ) {
+        throw new Error('invalid_checkout_reservation');
+      }
+      const priceId = await verifyConfiguredPrice(stripe, interval);
+      let customerId = reservation.stripe_customer_id;
+      if (!customerId) {
+        const customer = await stripe.customers.create(
+          { metadata: { workspace_id: workspaceId } },
+          { idempotencyKey: `workspace-customer-${workspaceId}` },
+        );
+        if (!stripeObjectMatchesMode(customer, mode))
+          throw new Error('stripe_customer_mode_mismatch');
+        customerId = customer.id;
+        const { error } = await admin.rpc('save_workspace_stripe_customer', {
           p_workspace_id: workspaceId,
           p_actor_user_id: userId,
           p_attempt_id: attemptId,
           p_stripe_customer_id: customerId,
-        },
-      );
-      if (customerError) throw customerError;
-    } else {
-      const customer = await stripe.customers.retrieve(customerId);
-      if (!stripeObjectMatchesMode(customer, mode)) {
-        throw new Error('stripe_customer_mode_mismatch');
+        });
+        if (error) throw error;
+      } else {
+        const customer = await stripe.customers.retrieve(customerId);
+        if (customer.deleted || !stripeObjectMatchesMode(customer, mode))
+          throw new Error('stripe_customer_mode_mismatch');
       }
-    }
 
-    const session = await stripe.checkout.sessions.create(
-      {
-        mode: 'subscription',
-        customer: customerId,
-        client_reference_id: workspaceId,
-        line_items: [{ price: priceId, quantity: 1 }],
-        metadata: {
-          workspace_id: workspaceId,
-          billing_interval: interval,
-        },
-        subscription_data: {
-          metadata: {
-            workspace_id: workspaceId,
-            billing_interval: interval,
+      // Keep creation parameters and the attempt-scoped idempotency key stable
+      // for recovery of an in-flight/lost creation response.
+      const session = await stripe.checkout.sessions.create(
+        {
+          mode: 'subscription',
+          customer: customerId,
+          client_reference_id: workspaceId,
+          line_items: [{ price: priceId, quantity: 1 }],
+          metadata: { workspace_id: workspaceId, billing_interval: interval },
+          subscription_data: {
+            metadata: { workspace_id: workspaceId, billing_interval: interval },
           },
+          success_url: successUrl,
+          cancel_url: cancelUrl,
         },
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-      },
-      { idempotencyKey: `workspace-checkout-${attemptId}` },
-    );
-    if (
-      !stripeCheckoutSessionMatchesMode(session, mode) ||
-      !session.url ||
-      !session.expires_at
-    ) {
-      throw new Error('invalid_stripe_checkout_session');
-    }
-
-    const { error: sessionError } = await admin.rpc(
-      'save_workspace_checkout_session',
-      {
+        { idempotencyKey: `workspace-checkout-${attemptId}` },
+      );
+      validateWorkspaceCheckoutSession(session, {
+        mode,
+        sessionId: session.id,
+        customerId,
+        workspaceId,
+        interval,
+      });
+      if (session.status === 'complete') return processing();
+      if (session.status !== 'open' || !session.url || !session.expires_at) {
+        throw new Error('invalid_stripe_checkout_session');
+      }
+      const { error } = await admin.rpc('save_workspace_checkout_session', {
         p_workspace_id: workspaceId,
         p_actor_user_id: userId,
         p_attempt_id: attemptId,
         p_stripe_session_id: session.id,
         p_session_expires_at: new Date(session.expires_at * 1000).toISOString(),
-      },
-    );
-    if (sessionError) throw sessionError;
-
-    logBillingEvent({
-      action: 'checkout_created',
-      workspace_id: workspaceId,
-      billing_interval: interval,
-      stripe_customer_id: stripeObjectId(customerId),
-      result: 'success',
-    });
-    return jsonResponse(request, { checkout_url: session.url });
+      });
+      if (error) {
+        if (
+          error.code === 'P0001' &&
+          error.message === 'checkout_reservation_expired'
+        ) {
+          reservation = null;
+          continue;
+        }
+        throw error;
+      }
+      logBillingEvent({
+        action: 'checkout_created',
+        workspace_id: workspaceId,
+        billing_interval: interval,
+        stripe_customer_id: stripeObjectId(customerId),
+        result: 'success',
+      });
+      return jsonResponse(request, { checkout_url: session.url });
+    }
+    return conflict();
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
-    const denied = message === 'not_authorized';
+    const denied =
+      message === 'not_authorized' ||
+      (typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === '42501');
     logBillingEvent({
       action: 'checkout_failed',
       result: denied ? 'denied' : 'error',

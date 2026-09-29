@@ -314,3 +314,57 @@ test('an unknown billing HTTP failure shows only the safe fallback', async ({
     page.getByRole('button', { name: 'Upgrade monthly' }),
   ).toBeEnabled();
 });
+
+test('Free teacher follows replacement Checkout URLs when changing monthly and annual choices', async ({
+  page,
+}) => {
+  await mockTeacher(page);
+  const requestedIntervals: string[] = [];
+  // Fulfill Stripe navigation locally: no Stripe request or purchase occurs.
+  await page.route('https://checkout.stripe.com/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><title>Mock Checkout</title><h1>Mock Checkout</h1>',
+    }),
+  );
+  await page.route('**/functions/v1/billing-checkout', async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    const body = route.request().postDataJSON();
+    expect(Object.keys(body).sort()).toEqual([
+      'billing_interval',
+      'workspace_id',
+    ]);
+    expect(body.workspace_id).toBe(workspaceId);
+    requestedIntervals.push(body.billing_interval);
+    await route.fulfill({
+      status: 200,
+      headers: corsHeaders,
+      json: {
+        checkout_url: `https://checkout.stripe.com/c/pay/cs_test_${body.billing_interval}_${requestedIntervals.length}`,
+      },
+    });
+  });
+  for (const [index, interval] of ['monthly', 'annual', 'monthly'].entries()) {
+    await page.goto('http://127.0.0.1:4173/app/billing');
+    await expect(
+      page.getByRole('heading', { name: 'Teacher Free' }),
+    ).toBeVisible();
+    await page
+      .getByRole('button', {
+        name: interval === 'monthly' ? 'Upgrade monthly' : 'Upgrade annually',
+      })
+      .click();
+    await expect(page).toHaveURL(
+      `https://checkout.stripe.com/c/pay/cs_test_${interval}_${index + 1}`,
+    );
+    await expect(
+      page.getByRole('heading', { name: 'Mock Checkout' }),
+    ).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  }
+  expect(requestedIntervals).toEqual(['monthly', 'annual', 'monthly']);
+});
