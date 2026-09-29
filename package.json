@@ -19,6 +19,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:ci": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build",
+    "pages:prepare": "node scripts/prepare-pages-artifact.mjs",
+    "pages:verify": "node scripts/verify-pages-artifact.mjs",
     "supabase": "supabase",
     "supabase:start": "npm run supabase -- db start",
     "supabase:stop": "npm run supabase -- stop",

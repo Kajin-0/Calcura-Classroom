@@ -1,7 +1,12 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
+const pagesBasePath = process.env.PAGES_BASE_PATH?.trim() ?? '';
+const normalizedPagesBasePath = pagesBasePath.replace(/^\/+|\/+$/g, '');
+const base = normalizedPagesBasePath ? `/${normalizedPagesBasePath}/` : '/';
+
 export default defineConfig({
+  base,
   plugins: [react()],
   test: {
     environment: 'jsdom',
