@@ -208,6 +208,19 @@ test('teacher dashboard shows real aggregate sections, navigation, and class fil
   await expect(
     page.getByRole('link', { name: /Integration practice/ }),
   ).toBeVisible();
+  const classRow = page.locator('.dashboard-class-row').first();
+  await classRow.focus();
+  await expect(classRow).toBeFocused();
+  await expect(classRow).toHaveCSS('outline-style', 'solid');
+  await expect
+    .poll(() =>
+      classRow.evaluate(
+        (element) => getComputedStyle(element, '::before').opacity,
+      ),
+    )
+    .toBe('1');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(`/app/classes/${firstClassId}`);
 });
 
 test('dashboard remains legible and contained at desktop, tablet, and phone widths', async ({
@@ -318,6 +331,9 @@ test('branded shell preserves keyboard navigation and readable contrast', async 
 }) => {
   await mockLocalSession(page);
   await page.goto('/app');
+  await expect(
+    page.getByRole('heading', { name: 'Outcome quality' }),
+  ).toBeVisible();
   const brand = page.getByRole('link', {
     name: 'Calcura Classroom',
     exact: true,
@@ -379,8 +395,29 @@ test('branded shell preserves keyboard navigation and readable contrast', async 
       ].map((element) =>
         ratio(getComputedStyle(element).color, shell.backgroundColor),
       );
+      const outcome = getComputedStyle(
+        document.querySelector('.dashboard-outcomes')!,
+      );
+      const outcomeTextRatios = [
+        ...document.querySelectorAll(
+          '.dashboard-outcomes h2, .dashboard-outcomes .dashboard-overline, .dashboard-outcome-value, .dashboard-outcome-subtitle, .dashboard-outcome-legend dt, .dashboard-outcome-legend dd, .dashboard-outcome-footnote',
+        ),
+      ].map((element) =>
+        ratio(getComputedStyle(element).color, outcome.backgroundColor),
+      );
+      const track = getComputedStyle(
+        document.querySelector('.dashboard-outcome-track')!,
+      );
+      const fill = getComputedStyle(
+        document.querySelector('.dashboard-outcome-track > span')!,
+      );
       return {
-        text: [...textRatios, ratio(active.color, active.backgroundColor)],
+        text: [
+          ...textRatios,
+          ...outcomeTextRatios,
+          ratio(active.color, active.backgroundColor),
+        ],
+        chart: ratio(fill.backgroundColor, track.backgroundColor),
         focus: ratio(active.outlineColor, active.backgroundColor),
         outline: active.outlineStyle,
       };
@@ -388,8 +425,85 @@ test('branded shell preserves keyboard navigation and readable contrast', async 
     for (const ratio of contrast.text)
       expect(ratio).toBeGreaterThanOrEqual(4.5);
     expect(contrast.focus).toBeGreaterThanOrEqual(3);
+    expect(contrast.chart).toBeGreaterThanOrEqual(3);
     expect(contrast.outline).not.toBe('none');
   }
+});
+
+test('meter reveals preserve exact values and filtering does not replay the overview', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await mockLocalSession(page);
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let dashboardRequests = 0;
+  await page.route('**/rpc/get_workspace_dashboard', async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    dashboardRequests += 1;
+    await pending;
+    await route.fulfill({ status: 200, headers: corsHeaders, json: response });
+  });
+  await page.goto('/app');
+  await expect(
+    page.getByRole('status', { name: 'Loading dashboard' }),
+  ).toBeVisible();
+  // Hold the actual CSS animation, so this checks its geometry without timing races.
+  const paused = await page.addStyleTag({
+    content: '.dashboard-page * { animation-play-state: paused !important; }',
+  });
+  release();
+  await expect(
+    page.locator('.dashboard-completion .dashboard-chart-line strong'),
+  ).toHaveText('50%');
+  const reveal = await page
+    .locator('.dashboard-completion .dashboard-rate-fill')
+    .evaluate((fill) => {
+      const animation = fill.getAnimations()[0];
+      if (!animation?.effect) throw new Error('Expected a meter reveal');
+      const timing = animation.effect.getTiming();
+      animation.currentTime = timing.delay;
+      const start = fill.getBoundingClientRect().width;
+      animation.currentTime = timing.delay + Number(timing.duration) / 2;
+      const middle = fill.getBoundingClientRect().width;
+      animation.finish();
+      const end = fill.getBoundingClientRect().width;
+      const trackWidth = fill.parentElement!.getBoundingClientRect().width;
+      document.getAnimations().forEach((item) => item.finish());
+      return { start, middle, end, ratio: end / trackWidth };
+    });
+  expect(reveal.start).toBe(0);
+  expect(reveal.middle).toBeGreaterThan(0);
+  expect(reveal.middle).toBeLessThan(reveal.end);
+  expect(reveal.ratio).toBeCloseTo(0.5, 2);
+  await paused.evaluate((element) => element.remove());
+  // Development Strict Mode may make two initial requests. Filtering must add none.
+  const initialRequests = dashboardRequests;
+  expect(initialRequests).toBeGreaterThan(0);
+  await page
+    .getByRole('combobox', { name: 'Class' })
+    .selectOption(secondClassId);
+  await expect(
+    page.getByText('No published assignments in this class.'),
+  ).toBeVisible();
+  const replaying = await page
+    .locator('.dashboard-kpis, .dashboard-primary-grid')
+    .evaluateAll(
+      (elements) =>
+        elements
+          .flatMap((element) => element.getAnimations({ subtree: true }))
+          .filter((animation) => animation.playState === 'running').length,
+    );
+  expect(replaying).toBe(0);
+  expect(dashboardRequests).toBe(initialRequests);
+  await expect(
+    page.locator('.dashboard-completion .dashboard-chart-line strong'),
+  ).toHaveText('50%');
 });
 
 test('reduced motion disables dashboard entrance and chart transitions', async ({
@@ -406,7 +520,19 @@ test('reduced motion disables dashboard entrance and chart transitions', async (
       .animationName,
     track: getComputedStyle(document.querySelector('.dashboard-rate-fill')!)
       .transitionDuration,
+    animations: document
+      .querySelector('.dashboard-page')!
+      .getAnimations({ subtree: true }).length,
+    ratio:
+      document
+        .querySelector('.dashboard-completion .dashboard-rate-fill')!
+        .getBoundingClientRect().width /
+      document
+        .querySelector('.dashboard-completion .dashboard-rate-track')!
+        .getBoundingClientRect().width,
   }));
   expect(motion.entrance).toBe('none');
   expect(motion.track).toBe('0s');
+  expect(motion.animations).toBe(0);
+  expect(motion.ratio).toBeCloseTo(0.5, 2);
 });
