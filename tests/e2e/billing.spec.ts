@@ -233,3 +233,84 @@ test('Pro billing stays neutral and its portal action remains keyboard reachable
   ).not.toBe('none');
   await reviewSurface(page, 'billing-pro');
 });
+
+test('an active checkout conflict is announced with recovery guidance and keeps Free access', async ({
+  page,
+}) => {
+  await mockTeacher(page);
+  await page.route('**/functions/v1/billing-checkout', async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    expect(route.request().postDataJSON()).toEqual({
+      workspace_id: workspaceId,
+      billing_interval: 'annual',
+    });
+    await route.fulfill({
+      status: 409,
+      headers: corsHeaders,
+      json: {
+        error: 'checkout_in_progress',
+        retry: true,
+        message: 'PRIVATE provider detail',
+      },
+    });
+  });
+  await page.goto('/app/billing');
+  const annual = page.getByRole('button', { name: 'Upgrade annually' });
+  await expect(annual).toBeEnabled();
+  await annual.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('alert')).toHaveText(
+    'Another checkout is already active for this workspace. Open the plan you previously selected to resume it, or wait for that checkout to expire before changing billing interval.',
+  );
+  await expect(page.getByText('PRIVATE provider detail')).toHaveCount(0);
+  await expect(
+    page.getByText('We could not complete that request. Try again.'),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Teacher Free' }),
+  ).toBeVisible();
+  await expect(annual).toBeEnabled();
+  const monthly = page.getByRole('button', { name: 'Upgrade monthly' });
+  await expect(monthly).toBeEnabled();
+  await monthly.focus();
+  await page.keyboard.press('Tab');
+  await expect(annual).toBeFocused();
+  await expect(page).toHaveURL(/\/app\/billing$/);
+  await reviewSurface(page, 'billing-checkout-conflict');
+  await expect(page.getByRole('alert')).toBeVisible();
+});
+
+test('an unknown billing HTTP failure shows only the safe fallback', async ({
+  page,
+}) => {
+  await mockTeacher(page);
+  await page.route('**/functions/v1/billing-checkout', async (route) => {
+    await route.fulfill(
+      route.request().method() === 'OPTIONS'
+        ? { status: 204, headers: corsHeaders }
+        : {
+            status: 502,
+            headers: corsHeaders,
+            json: {
+              error: 'something_else',
+              message: 'PRIVATE Stripe exception',
+              stripe_customer_id: 'cus_private',
+            },
+          },
+    );
+  });
+  await page.goto('/app/billing');
+  await page.getByRole('button', { name: 'Upgrade monthly' }).click();
+  await expect(page.getByRole('alert')).toHaveText(
+    'We could not complete that request. Try again.',
+  );
+  await expect(
+    page.getByText(/PRIVATE Stripe exception|cus_private/),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Upgrade monthly' }),
+  ).toBeEnabled();
+});

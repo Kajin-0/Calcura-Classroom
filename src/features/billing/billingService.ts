@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { FunctionsHttpError, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/database.generated';
 import { getSupabaseClient } from '../../lib/supabase/client';
 import {
@@ -20,6 +20,36 @@ export interface WorkspaceBillingSummary {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+async function billingFunctionFailure(
+  error: unknown,
+): Promise<ServiceResult<never>> {
+  if (error instanceof FunctionsHttpError) {
+    try {
+      const response: unknown = error.context;
+      if (response instanceof Response) {
+        // Supabase leaves non-2xx bodies unread. Preserve the original response
+        // and accept only exact contract codes, never provider display text.
+        const body: unknown = await response.clone().json();
+        if (isRecord(body)) {
+          switch (body.error) {
+            case 'checkout_in_progress':
+            case 'checkout_processing':
+            case 'checkout_expired':
+            case 'subscription_exists':
+            case 'billing_unavailable':
+            case 'not_authorized':
+              return failure(body.error);
+          }
+        }
+      }
+    } catch {
+      // Malformed, consumed, or unreadable responses keep the safe fallback.
+    }
+    return failure('unexpected');
+  }
+  return { ok: false, error: mapClassroomError(error) };
+}
 
 export function parseWorkspaceBillingSummary(
   value: unknown,
@@ -64,11 +94,11 @@ export async function getWorkspaceBillingSummary(
       'billing-summary',
       { body: { workspace_id: workspaceId } },
     );
-    if (error) return { ok: false, error: mapClassroomError(error) };
+    if (error) return billingFunctionFailure(error);
     const parsed = parseWorkspaceBillingSummary(data);
     return parsed ? { ok: true, value: parsed } : failure('unexpected');
   } catch (error) {
-    return { ok: false, error: mapClassroomError(error) };
+    return billingFunctionFailure(error);
   }
 }
 
@@ -87,7 +117,7 @@ async function invokeHostedUrl(
         body: { workspace_id: workspaceId },
       },
     );
-    if (error) return { ok: false, error: mapClassroomError(error) };
+    if (error) return billingFunctionFailure(error);
     const url = isRecord(data) ? data.portal_url : null;
     if (typeof url !== 'string') return failure('unexpected');
     const parsed = new URL(url);
@@ -99,7 +129,7 @@ async function invokeHostedUrl(
     }
     return { ok: true, value: url };
   } catch (error) {
-    return { ok: false, error: mapClassroomError(error) };
+    return billingFunctionFailure(error);
   }
 }
 
@@ -116,7 +146,7 @@ export async function createCheckoutSession(
       'billing-checkout',
       { body: { workspace_id: workspaceId, billing_interval: interval } },
     );
-    if (error) return { ok: false, error: mapClassroomError(error) };
+    if (error) return billingFunctionFailure(error);
     if (!isRecord(data) || typeof data.checkout_url !== 'string') {
       return failure('unexpected');
     }
@@ -126,7 +156,7 @@ export async function createCheckoutSession(
       ? { ok: true, value: data.checkout_url }
       : failure('unexpected');
   } catch (error) {
-    return { ok: false, error: mapClassroomError(error) };
+    return billingFunctionFailure(error);
   }
 }
 
@@ -142,7 +172,7 @@ export async function reconcileWorkspaceBilling(
       'billing-reconcile',
       { body: { workspace_id: workspaceId } },
     );
-    if (error) return { ok: false, error: mapClassroomError(error) };
+    if (error) return billingFunctionFailure(error);
     if (
       !isRecord(data) ||
       ![
@@ -157,7 +187,7 @@ export async function reconcileWorkspaceBilling(
     }
     return { ok: true, value: String(data.result) };
   } catch (error) {
-    return { ok: false, error: mapClassroomError(error) };
+    return billingFunctionFailure(error);
   }
 }
 

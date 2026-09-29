@@ -18,6 +18,11 @@ export type ClassroomErrorCode =
   | 'only_drafts_can_be_discarded'
   | 'invalid_assignment_item_order'
   | 'classroom_inactive'
+  | 'checkout_in_progress'
+  | 'checkout_processing'
+  | 'checkout_expired'
+  | 'subscription_exists'
+  | 'billing_unavailable'
   | 'unexpected';
 
 export interface ClassroomError {
@@ -55,6 +60,14 @@ const userMessages: Record<ClassroomErrorCode, string> = {
     'The practice block order changed. Reload and try again.',
   classroom_inactive:
     'This class is not active and cannot publish assignments.',
+  checkout_in_progress:
+    'Another checkout is already active for this workspace. Open the plan you previously selected to resume it, or wait for that checkout to expire before changing billing interval.',
+  checkout_processing:
+    'Your checkout has completed and Stripe is still confirming the subscription. Check plan status again shortly.',
+  checkout_expired: 'That checkout has expired. Try opening checkout again.',
+  subscription_exists:
+    'This workspace already has a Stripe subscription. Use Manage billing to make changes.',
+  billing_unavailable: 'Billing is temporarily unavailable. Try again shortly.',
   unexpected: 'We could not complete that request. Try again.',
 };
 
