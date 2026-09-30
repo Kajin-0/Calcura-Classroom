@@ -6,6 +6,7 @@ import { createServer, get } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import process from 'node:process';
 import { URL } from 'node:url';
+import { expectedCalcuraAppUrl } from './check-pages-config.mjs';
 
 const logger = new Console(process.stdout, process.stderr);
 const dist = resolve('dist');
@@ -53,6 +54,16 @@ for (const variable of ['VITE_SUPABASE_URL', 'VITE_CALCURA_APP_URL']) {
     builtText.includes(new URL(value).origin),
     `${variable} origin is missing from the built app.`,
   );
+  if (variable === 'VITE_CALCURA_APP_URL') {
+    assert.ok(
+      value === expectedCalcuraAppUrl,
+      'VITE_CALCURA_APP_URL must use the canonical production /app/ URL.',
+    );
+    assert.ok(
+      builtText.includes(value),
+      'VITE_CALCURA_APP_URL full application URL is missing from the built app.',
+    );
+  }
 }
 
 const routes = [

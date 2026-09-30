@@ -28,10 +28,26 @@ browser bundle and are public by design:
 | ------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------ |
 | `VITE_SUPABASE_URL`             | `https://qsuacjqcrpswognhhikv.supabase.co` | Existing production Supabase URL; validated by the workflow.                         |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | The project's browser-publishable key      | A legacy `anon` JWT is accepted. Service-role and Supabase secret keys are rejected. |
-| `VITE_CALCURA_APP_URL`          | `https://calcura.study/`                   | Calcura-owned problem preview provider.                                              |
+| `VITE_CALCURA_APP_URL`          | `https://calcura.study/app/`               | Full Calcura-owned application URL, including its mount path and trailing slash.     |
 
 No Stripe, service-role, database, webhook, or other server credential belongs
 in these variables or the Pages workflow.
+
+The production preflight requires the exact canonical Calcura application URL
+`https://calcura.study/app/`. The origin root is the marketing site, not the
+preview provider. Other paths, a missing trailing slash, HTTP, credentials,
+query parameters, and fragments are rejected. Artifact verification also checks
+that this full application URL was embedded, rather than only its origin.
+
+The teacher iframe target is
+`https://calcura.study/app/?classroomProblemPreview=1`; message security still
+uses the origin-only `https://calcura.study`. Local development may continue to
+use its root-mounted Calcura server.
+
+Before a later approved production build, change the existing repository
+variable `VITE_CALCURA_APP_URL` from `https://calcura.study/` to
+`https://calcura.study/app/`. This source correction does not change repository
+variables or deploy the teacher application.
 
 ## Initial enablement and custom domain
 

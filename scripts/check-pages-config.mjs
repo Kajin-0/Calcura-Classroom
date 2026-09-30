@@ -8,6 +8,7 @@ const logger = new Console(process.stdout, process.stderr);
 
 const expectedSupabaseHost = 'qsuacjqcrpswognhhikv.supabase.co';
 const expectedCalcuraOrigin = 'https://calcura.study';
+export const expectedCalcuraAppUrl = `${expectedCalcuraOrigin}/app/`;
 
 function requiredValue(env, name) {
   const value = String(env[name] ?? '').trim();
@@ -83,14 +84,15 @@ export function validatePagesConfig(env) {
   if (
     calcuraUrl.protocol !== 'https:' ||
     calcuraUrl.origin !== expectedCalcuraOrigin ||
-    calcuraUrl.pathname !== '/' ||
+    calcuraUrl.pathname !== '/app/' ||
     calcuraUrl.username ||
     calcuraUrl.password ||
     calcuraUrl.search ||
-    calcuraUrl.hash
+    calcuraUrl.hash ||
+    calcuraValue !== expectedCalcuraAppUrl
   ) {
     throw new Error(
-      'VITE_CALCURA_APP_URL must be https://calcura.study/ for the production preview bridge.',
+      `VITE_CALCURA_APP_URL must be ${expectedCalcuraAppUrl} for the production preview bridge.`,
     );
   }
 
