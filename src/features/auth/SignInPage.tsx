@@ -12,7 +12,9 @@ import {
 } from './authService';
 import { useAuthSession } from './useAuthSession';
 
-export function SignInPage() {
+type AuthMode = 'signin' | 'signup';
+
+export function SignInPage({ mode = 'signin' }: { mode?: AuthMode }) {
   const { session, initializationError } = useAuthSession();
   const config = readSupabaseConfig();
   const [email, setEmail] = useState('');
@@ -22,6 +24,7 @@ export function SignInPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [now, setNow] = useState(0);
+  const isSignup = mode === 'signup';
 
   useEffect(() => {
     if (!cooldownUntil) return undefined;
@@ -50,7 +53,7 @@ export function SignInPage() {
     setCodeSent(true);
     setCooldownUntil(Date.now() + RESEND_COOLDOWN_MS);
     setNow(Date.now());
-    setMessage('If this address can sign in, a six-digit code is on its way.');
+    setMessage('A six-digit code is on its way.');
   };
 
   const handleVerify = async (event: FormEvent<HTMLFormElement>) => {
@@ -83,13 +86,17 @@ export function SignInPage() {
 
   return (
     <main className="auth-page">
-      <section className="auth-card" aria-labelledby="signin-title">
+      <section className="auth-card" aria-labelledby="auth-title">
         <a className="wordmark" href="/" aria-label="Calcura Classroom home">
           Calcura Classroom
         </a>
-        <h1 id="signin-title">Sign in</h1>
+        <h1 id="auth-title">
+          {isSignup ? 'Create your free teacher account' : 'Teacher sign in'}
+        </h1>
         <p className="muted-copy">
-          Use the email address you use with Calcura.
+          {isSignup
+            ? 'Create classes, publish assignments, and track student progress. No credit card required.'
+            : 'Sign in to your Calcura Classroom workspace.'}
         </p>
 
         {!config.configured && (
@@ -127,7 +134,7 @@ export function SignInPage() {
               type="submit"
               disabled={busy || !config.configured}
             >
-              {busy ? 'Sending…' : 'Send sign-in code'}
+              {busy ? 'Sending…' : isSignup ? 'Create account' : 'Send sign-in code'}
             </button>
           </form>
         ) : (
@@ -152,7 +159,7 @@ export function SignInPage() {
               type="submit"
               disabled={busy || code.length !== 6}
             >
-              {busy ? 'Verifying…' : 'Verify code'}
+              {busy ? 'Verifying…' : 'Verify and continue'}
             </button>
             <button
               className="button button-quiet"
@@ -179,7 +186,11 @@ export function SignInPage() {
           </form>
         )}
         <p className="auth-footnote">
-          Email codes are delivered through the shared Calcura sign-in service.
+          {isSignup ? (
+            <>Already have an account? <a href="/signin">Teacher sign in</a>.</>
+          ) : (
+            <>New to Calcura Classroom? <a href="/signup">Create a free teacher account</a>.</>
+          )}
         </p>
       </section>
     </main>
