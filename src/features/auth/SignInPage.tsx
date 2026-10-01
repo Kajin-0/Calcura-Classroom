@@ -134,7 +134,11 @@ export function SignInPage({ mode = 'signin' }: { mode?: AuthMode }) {
               type="submit"
               disabled={busy || !config.configured}
             >
-              {busy ? 'Sending…' : isSignup ? 'Create account' : 'Send sign-in code'}
+              {busy
+                ? 'Sending…'
+                : isSignup
+                  ? 'Create account'
+                  : 'Send sign-in code'}
             </button>
           </form>
         ) : (
@@ -187,9 +191,14 @@ export function SignInPage({ mode = 'signin' }: { mode?: AuthMode }) {
         )}
         <p className="auth-footnote">
           {isSignup ? (
-            <>Already have an account? <a href="/signin">Teacher sign in</a>.</>
+            <>
+              Already have an account? <a href="/signin">Teacher sign in</a>.
+            </>
           ) : (
-            <>New to Calcura Classroom? <a href="/signup">Create a free teacher account</a>.</>
+            <>
+              New to Calcura Classroom?{' '}
+              <a href="/signup">Create a free teacher account</a>.
+            </>
           )}
         </p>
       </section>

@@ -6,7 +6,12 @@ The intended production teacher URL is `https://classroom.calcura.study`.
 
 ## Workflow
 
-`.github/workflows/deploy-pages.yml` builds with Node 24 and `npm ci`, then
+`.github/workflows/ci.yml` gates production on its foundation, browser-smoke,
+and database-security jobs. Direct pushes to `main` are supported; only after
+all three pass do Pages jobs build the exact tested `github.sha` with Node 24
+and `npm ci`. Pull requests never deploy. Manual dispatch runs the same gates,
+and per-ref cancellation prevents an obsolete main run from deploying.
+The workflow then
 uploads the Vite `dist/` artifact using the GitHub Pages Actions deployment
 workflow. GitHub's `configure-pages` output determines the build base path:
 the default repository Pages URL uses its repository subpath, and the eventual

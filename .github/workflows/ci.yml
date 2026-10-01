@@ -3,9 +3,14 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: classroom-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   foundation:
@@ -47,3 +52,56 @@ jobs:
       - run: git diff --exit-code -- src/types/database.generated.ts
       - if: always()
         run: npm run supabase:stop
+
+  pages-build:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [foundation, browser-smoke, database-security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Validate public build variables
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_CALCURA_APP_URL: ${{ vars.VITE_CALCURA_APP_URL }}
+        run: node scripts/check-pages-config.mjs
+      - uses: actions/configure-pages@v5
+        id: pages
+      - name: Build and verify exact tested commit
+        env:
+          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_CALCURA_APP_URL: ${{ vars.VITE_CALCURA_APP_URL }}
+        run: |
+          npm run build
+          npm run pages:prepare
+          npm run pages:verify
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  pages-deploy:
+    needs: pages-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
