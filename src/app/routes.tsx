@@ -14,7 +14,8 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/app" replace />} />
-      <Route path="/signin" element={<SignInPage />} />
+      <Route path="/signin" element={<SignInPage mode="signin" />} />
+      <Route path="/signup" element={<SignInPage mode="signup" />} />
       <Route element={<RequireSession />}>
         <Route element={<WorkspaceProvider />}>
           <Route path="/app" element={<TeacherLayout />}>
