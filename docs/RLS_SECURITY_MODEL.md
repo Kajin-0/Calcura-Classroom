@@ -33,6 +33,18 @@ A 10-character code uses a cryptographically random Base32-like alphabet that av
 
 ## SECURITY DEFINER functions
 
+### Archived-class read semantics
+
+An active enrollee in an active workspace retains minimal class metadata
+(including its `archived` status) after the class is archived. This is the
+existing `is_active_class_enrollee`/classes SELECT policy, not permission to
+continue work. Calcura's student class list filters to active classes;
+assignment/item visibility and new result submission independently require
+an active class. Join codes and other students' enrollments remain private.
+`assignment_security.test.sql` explicitly checks retained metadata alongside
+the existing denial of published work in archived classes. No policy change
+or migration is required for this clarification.
+
 The migration uses SECURITY DEFINER only for narrowly scoped operations that must bypass RLS safely:
 
 - `classroom_private.has_workspace_role`, `is_class_staff`, and `is_active_class_enrollee` read their own underlying authorization tables without triggering recursive RLS evaluation. Each derives identity from `auth.uid()` and exposes only a boolean.

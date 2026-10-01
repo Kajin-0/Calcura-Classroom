@@ -166,6 +166,9 @@ select extensions.throws_ok(
 select set_config('request.jwt.claim.sub', '11000000-0000-4000-8000-000000000003', true);
 select set_config('request.jwt.claims', '{"sub":"11000000-0000-4000-8000-000000000003","role":"authenticated"}', true);
 select extensions.is((select auth.uid()::text), '11000000-0000-4000-8000-000000000003', 'student assignment request has expected user identity');
+-- Enrollment metadata/history survives class archival; active work does not.
+select extensions.is((select name from public.classes where id = '61000000-0000-4000-8000-000000000004'), 'Archived Class A', 'active enrollee retains archived class metadata');
+select extensions.is((select status from public.classes where id = '61000000-0000-4000-8000-000000000004'), 'archived', 'archived metadata remains explicitly labeled, not active work');
 select extensions.ok(classroom_private.can_read_assignment('61000000-0000-4000-8000-000000000001', 'published'), 'student policy helper recognizes active enrolled class for published assignment');
 select extensions.is((select count(*)::integer from public.assignments where class_id = '61000000-0000-4000-8000-000000000001'), 1, 'student sees only published assignments in enrolled active class');
 select extensions.is((select count(*)::integer from public.assignments where id in ('71000000-0000-4000-8000-000000000002', '71000000-0000-4000-8000-000000000003')), 0, 'student cannot see draft or archived assignments');
