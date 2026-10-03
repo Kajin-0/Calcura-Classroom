@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuthSession } from '../features/auth/useAuthSession';
 import { useWorkspace } from '../features/workspaces/useWorkspace';
 import { WorkspacePlanLabel } from '../features/workspaces/entitlements/WorkspacePlanLabel';
+import { CalcuraIntegralMark } from '../components/CalcuraMark';
 import { LoadingState } from '../components/LoadingState';
 import {
   BookIcon,
@@ -30,7 +31,7 @@ export function TeacherLayout() {
       <header className="workspace-header">
         <Link className="wordmark" to="/app" aria-label="Calcura Classroom">
           <span className="workspace-brand-mark" aria-hidden="true">
-            ∫
+            <CalcuraIntegralMark weight={28} />
           </span>
           <span className="workspace-brand-name" aria-hidden="true">
             calcura<span>Classroom</span>

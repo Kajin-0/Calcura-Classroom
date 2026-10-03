@@ -159,6 +159,13 @@ dashboard-aggregate contract changed, and no data field or telemetry was added.
   for the safe-area inset. The skip link, `aria-current`, and the brand-to-Dashboard
   tab order are unchanged. Icons are inline, decorative (`aria-hidden`) SVGs in
   `src/components/icons.tsx`; no icon dependency was added.
+- The brand mark is the exact integral outline of the Calcura app icon and app
+  menu (`calcura/branding/calcura-integral-mark.svg`, KaTeX `\int`), rendered by
+  `CalcuraIntegralMark` in `src/components/CalcuraMark.tsx`. Colors may differ per
+  surface, the shape may not: never use a font glyph or another integral for the
+  logo. `weight` only thickens the stroke so the hairline tails survive at small
+  sizes. The favicon and touch icon in `public/` use the same outline (rendered
+  from the Calcura-Site `brand/` sources).
 
 ### Dashboard
 

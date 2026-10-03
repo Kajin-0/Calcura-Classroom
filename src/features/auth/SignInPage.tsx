@@ -11,6 +11,7 @@ import {
   verifyEmailOtp,
 } from './authService';
 import { useAuthSession } from './useAuthSession';
+import { CalcuraIntegralMark } from '../../components/CalcuraMark';
 
 type AuthMode = 'signin' | 'signup';
 
@@ -89,7 +90,7 @@ export function SignInPage({ mode = 'signin' }: { mode?: AuthMode }) {
       <section className="auth-card" aria-labelledby="auth-title">
         <a className="wordmark" href="/" aria-label="Calcura Classroom home">
           <span className="workspace-brand-mark" aria-hidden="true">
-            ∫
+            <CalcuraIntegralMark weight={28} />
           </span>
           <span>Calcura Classroom</span>
         </a>
