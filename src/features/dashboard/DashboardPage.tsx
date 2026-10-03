@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  AlertIcon,
+  BookIcon,
+  CheckCircleIcon,
+  ChevronRightIcon,
+  ClipboardIcon,
+  PlusIcon,
+  UsersIcon,
+} from '../../components/icons';
 import { CreateClassForm } from '../classes/CreateClassForm';
 import { useWorkspace } from '../workspaces/useWorkspace';
 import {
@@ -37,7 +46,7 @@ function RateTrack({
   tone = 'accent',
 }: {
   rate: number | null;
-  tone?: 'accent' | 'muted';
+  tone?: 'accent' | 'positive';
 }) {
   return (
     <span className="dashboard-rate-track" aria-hidden="true">
@@ -128,6 +137,56 @@ function ClassCompletion({ classes }: { classes: DashboardClass[] }) {
   );
 }
 
+const RING_RADIUS = 48;
+const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
+const RING_GAP = 3;
+
+/** Two arcs of one ring: correct results, then surrendered results. */
+function OutcomeRing({ correct, total }: { correct: number; total: number }) {
+  const surrendered = total - correct;
+  const correctLength = (correct / total) * RING_LENGTH;
+  const surrenderedLength = RING_LENGTH - correctLength;
+  const split = correct > 0 && surrendered > 0;
+  const gap = split ? RING_GAP : 0;
+  const arc = (length: number, start: number) => ({
+    strokeDasharray: `${Math.max(length - gap, 0.01)} ${RING_LENGTH}`,
+    strokeDashoffset: -(start + gap / 2),
+  });
+  return (
+    <svg
+      className="dashboard-outcome-ring"
+      viewBox="0 0 120 120"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle
+        className="dashboard-outcome-ring-track"
+        cx="60"
+        cy="60"
+        r={RING_RADIUS}
+      />
+      {surrendered > 0 && (
+        <circle
+          className="dashboard-outcome-arc dashboard-outcome-arc-surrendered"
+          cx="60"
+          cy="60"
+          r={RING_RADIUS}
+          style={arc(surrenderedLength, correctLength)}
+        />
+      )}
+      {correct > 0 && (
+        <circle
+          className="dashboard-outcome-arc dashboard-outcome-arc-correct"
+          cx="60"
+          cy="60"
+          r={RING_RADIUS}
+          style={arc(correctLength, 0)}
+        />
+      )}
+    </svg>
+  );
+}
+
 function OutcomeQuality({ dashboard }: { dashboard: WorkspaceDashboard }) {
   const { problemsCompleted, problemsCorrect, accuracy } = dashboard.summary;
   const surrendered = problemsCompleted - problemsCorrect;
@@ -149,17 +208,21 @@ function OutcomeQuality({ dashboard }: { dashboard: WorkspaceDashboard }) {
         </div>
       ) : (
         <>
-          <p className="dashboard-outcome-value">{percent(accuracy)}</p>
-          <p className="dashboard-outcome-subtitle">correct terminal results</p>
-          <div className="dashboard-outcome-track" aria-hidden="true">
-            <span style={{ width: `${(accuracy ?? 0) * 100}%` }} />
+          <div className="dashboard-outcome-figure">
+            <OutcomeRing correct={problemsCorrect} total={problemsCompleted} />
+            <div className="dashboard-outcome-center">
+              <p className="dashboard-outcome-value">{percent(accuracy)}</p>
+              <p className="dashboard-outcome-subtitle">
+                correct terminal results
+              </p>
+            </div>
           </div>
           <dl className="dashboard-outcome-legend">
-            <div>
+            <div className="dashboard-outcome-correct">
               <dt>Correct</dt>
               <dd>{problemsCorrect.toLocaleString()}</dd>
             </div>
-            <div>
+            <div className="dashboard-outcome-surrendered">
               <dt>Surrendered</dt>
               <dd>{surrendered.toLocaleString()}</dd>
             </div>
@@ -188,6 +251,13 @@ function ClassOverview({ classes }: { classes: DashboardClass[] }) {
           All classes →
         </Link>
       </div>
+      <div className="dashboard-columns dashboard-class-columns" aria-hidden>
+        <span>Class</span>
+        <span>Students</span>
+        <span>Assignments</span>
+        <span>Completion</span>
+        <span>Accuracy</span>
+      </div>
       <ul className="dashboard-class-list">
         {classes.map((item) => (
           <li key={item.classId}>
@@ -215,6 +285,7 @@ function ClassOverview({ classes }: { classes: DashboardClass[] }) {
                 <small>Accuracy</small>
                 <strong>{percent(item.accuracy)}</strong>
               </span>
+              <ChevronRightIcon className="dashboard-row-chevron" size={18} />
             </Link>
           </li>
         ))}
@@ -248,6 +319,7 @@ function ActivityPerformance({
           <p className="dashboard-overline">Practice families</p>
           <h2 id="activity-performance-title">Technique performance</h2>
         </div>
+        <span className="dashboard-panel-note">Lowest accuracy first</span>
       </div>
       {sorted.length === 0 ? (
         <div className="dashboard-panel-empty compact">
@@ -264,7 +336,7 @@ function ActivityPerformance({
                 <span>{item.label}</span>
                 <strong>{percent(item.accuracy)}</strong>
               </div>
-              <RateTrack rate={item.accuracy} tone="muted" />
+              <RateTrack rate={item.accuracy} tone="positive" />
               <span className="dashboard-chart-caption">
                 {countLabel(item.problemsCompleted, 'result')} ·{' '}
                 {attempts(item.averageAttempts)} avg attempts ·{' '}
@@ -339,6 +411,16 @@ function AssignmentPerformance({
         </div>
       ) : (
         <>
+          <div
+            className="dashboard-columns dashboard-assignment-columns"
+            aria-hidden
+          >
+            <span>Assignment</span>
+            <span>Completion</span>
+            <span>Accuracy</span>
+            <span>Attempts</span>
+            <span>Due</span>
+          </div>
           <ul className="dashboard-assignment-list">
             {shown.map((item) => (
               <li key={item.assignmentId}>
@@ -350,7 +432,7 @@ function AssignmentPerformance({
                     <strong>{item.title}</strong>
                     <small>
                       {classNames.get(item.classId)} · {item.totalProblemCount}{' '}
-                      problems
+                      problems · Published {shortDate(item.publishedAt)}
                     </small>
                   </span>
                   <span className="dashboard-assignment-progress">
@@ -366,14 +448,18 @@ function AssignmentPerformance({
                     <small>Accuracy</small>
                     <strong>{percent(item.accuracy)}</strong>
                   </span>
-                  <span className="dashboard-assignment-cell">
+                  <span className="dashboard-assignment-cell dashboard-assignment-attempts">
                     <small>Avg attempts</small>
                     <strong>{attempts(item.averageAttempts)}</strong>
                   </span>
                   <span className="dashboard-assignment-cell">
-                    <small>Published</small>
-                    <strong>{shortDate(item.publishedAt)}</strong>
+                    <small>Due</small>
+                    <strong>{shortDate(item.dueAt)}</strong>
                   </span>
+                  <ChevronRightIcon
+                    className="dashboard-row-chevron"
+                    size={18}
+                  />
                 </Link>
               </li>
             ))}
@@ -446,6 +532,7 @@ export function DashboardPage() {
             type="button"
             onClick={() => setFormOpen(true)}
           >
+            <PlusIcon size={18} />
             New class
           </button>
         )}
@@ -463,54 +550,104 @@ export function DashboardPage() {
         <DashboardSkeleton />
       ) : loadState.error || !dashboard || !summary ? (
         <div className="dashboard-error recoverable-state" role="alert">
-          <h2>Dashboard unavailable</h2>
-          <p>
-            We couldn’t load your workspace overview. Your classes and
-            assignments are unchanged.
-          </p>
-          <button
-            className="button button-quiet"
-            type="button"
-            onClick={() => setRevision((value) => value + 1)}
-          >
-            Retry
-          </button>
+          <span className="dashboard-state-icon is-danger" aria-hidden="true">
+            <AlertIcon size={24} />
+          </span>
+          <div>
+            <h2>Dashboard unavailable</h2>
+            <p>
+              We couldn’t load your workspace overview. Your classes and
+              assignments are unchanged.
+            </p>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() => setRevision((value) => value + 1)}
+            >
+              Retry
+            </button>
+          </div>
         </div>
       ) : (
         <div className="dashboard-loaded">
           <dl className="dashboard-kpis" aria-label="Workspace summary">
             <div className="dashboard-kpi">
-              <dt>Active classes</dt>
-              <dd>{summary.activeClasses}</dd>
-              <span>Currently teaching</span>
+              <dt>
+                <span className="dashboard-kpi-icon" aria-hidden="true">
+                  <BookIcon size={18} />
+                </span>
+                Active classes
+              </dt>
+              <dd>
+                <strong className="dashboard-kpi-value">
+                  {summary.activeClasses}
+                </strong>
+                <span className="dashboard-kpi-note">Currently teaching</span>
+              </dd>
             </div>
             <div className="dashboard-kpi">
-              <dt>Students</dt>
-              <dd>{summary.students}</dd>
-              <span>Unique active enrollees</span>
+              <dt>
+                <span className="dashboard-kpi-icon" aria-hidden="true">
+                  <UsersIcon size={18} />
+                </span>
+                Students
+              </dt>
+              <dd>
+                <strong className="dashboard-kpi-value">
+                  {summary.students}
+                </strong>
+                <span className="dashboard-kpi-note">
+                  Unique active enrollees
+                </span>
+              </dd>
             </div>
             <div className="dashboard-kpi">
-              <dt>Assignments</dt>
-              <dd>{summary.activeAssignments}</dd>
-              <span>Published in active classes</span>
+              <dt>
+                <span className="dashboard-kpi-icon" aria-hidden="true">
+                  <ClipboardIcon size={18} />
+                </span>
+                Assignments
+              </dt>
+              <dd>
+                <strong className="dashboard-kpi-value">
+                  {summary.activeAssignments}
+                </strong>
+                <span className="dashboard-kpi-note">
+                  Published in active classes
+                </span>
+              </dd>
             </div>
-            <div className="dashboard-kpi">
-              <dt>Completion</dt>
-              <dd>{percent(summary.completionRate)}</dd>
-              <span>
-                {summary.studentsCompleted} of{' '}
-                {summary.studentAssignmentOpportunities} student assignments
-              </span>
+            <div className="dashboard-kpi dashboard-kpi-featured">
+              <dt>
+                <span className="dashboard-kpi-icon" aria-hidden="true">
+                  <CheckCircleIcon size={18} />
+                </span>
+                Completion
+              </dt>
+              <dd>
+                <strong className="dashboard-kpi-value">
+                  {percent(summary.completionRate)}
+                </strong>
+                <span className="dashboard-kpi-note">
+                  {summary.studentsCompleted} of{' '}
+                  {summary.studentAssignmentOpportunities} student assignments
+                </span>
+              </dd>
             </div>
           </dl>
           {summary.activeClasses === 0 ? (
             <div className="dashboard-first-class">
-              <p className="dashboard-overline">Getting started</p>
-              <h2>No classes yet</h2>
-              <p>
-                Create a class to invite students and begin assigning Calcura
-                practice.
-              </p>
+              <span className="dashboard-state-icon" aria-hidden="true">
+                <BookIcon size={26} />
+              </span>
+              <div>
+                <p className="dashboard-overline">Getting started</p>
+                <h2>No classes yet</h2>
+                <p>
+                  Create a class to invite students and begin assigning Calcura
+                  practice.
+                </p>
+              </div>
               {!formOpen && (
                 <button
                   className="button button-primary"

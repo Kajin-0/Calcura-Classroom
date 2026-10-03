@@ -3,6 +3,11 @@
 Phase 10.5 refines presentation on top of the unlanded Phase 10 implementation.
 It changes no schema, RPC, generation, entitlement, billing, or lifecycle contract.
 
+> **Phase 11 supersedes the palette, shell, and dashboard descriptions below.**
+> Neutral-only color, dark primary buttons, the top header, and the single-surface
+> metric strip no longer apply. Accessibility, motion, and data-contract rules in
+> this file still do. See "Phase 11 UI overhaul" at the end.
+
 ## Shared language
 
 - `src/styles/global.css` owns neutral color, spacing, radius, and motion tokens.
@@ -128,3 +133,48 @@ problem editor desktop/mobile, and Free/Pro billing. Browser fixtures retain the
 existing API/preview contracts; no real billing or data mutation was performed.
 The existing port-5174 preview serves the new palette without restarting it.
 Product-owner visual acceptance is still pending.
+
+## Phase 11 UI overhaul
+
+Presentation only, on `feat/classroom-ui-overhaul`. It aligns the teacher app with
+the redesigned public site. No schema, RPC, entitlement, billing, lifecycle, or
+dashboard-aggregate contract changed, and no data field or telemetry was added.
+
+### Tokens and type
+
+- `src/styles/tokens.css` owns color, spacing, radius, shadow, and motion tokens.
+  Components use tokens, not color literals. `global.css` and each feature
+  stylesheet consume them.
+- Typography is Inter Variable, self-hosted through `@fontsource-variable/inter`
+  (no external font request). Numbers in metrics use tabular figures.
+- Semantic color is fixed: **blue = progress/completion**, **green = correct and
+  accuracy**, **amber = surrendered**, **red = destructive or failed**. Plan and
+  lifecycle labels stay neutral; Free is never presented as lesser.
+
+### Shell
+
+- At 900 px and wider the shell is a fixed navy left rail (brand, navigation, and
+  an account card with the plan label and Sign out). Below 900 px it becomes a
+  compact top bar with a fixed bottom tab bar; content reserves room for it and
+  for the safe-area inset. The skip link, `aria-current`, and the brand-to-Dashboard
+  tab order are unchanged. Icons are inline, decorative (`aria-hidden`) SVGs in
+  `src/components/icons.tsx`; no icon dependency was added.
+
+### Dashboard
+
+- Layout responds to its own width with container queries, not only the viewport,
+  so it stays correct beside the rail. Rows keep real table/definition semantics;
+  the ratio columns collapse into labelled stacked rows on narrow containers.
+- Completion is the featured KPI. Outcome quality is a navy panel with a ring chart
+  (correct vs. surrendered arcs) whose legend and figures stay readable as text.
+  Null denominators still show "—"; nothing is rounded into a false value.
+- Entrance and meter-reveal motion runs once, only when motion is allowed, and
+  never replays when the class filter changes. Reduced motion renders final state.
+
+### Accessibility and touch
+
+- Touch targets are 44 px on coarse pointers, including form controls, summaries,
+  and row action links. Actions are never hover-only. Tables keep contained
+  horizontal scrolling. No horizontal page overflow from 320 to 1920 px.
+- Text contrast is at least 4.5:1 on the rail and navy panels; focus outlines and
+  chart arcs are at least 3:1 against their surface.

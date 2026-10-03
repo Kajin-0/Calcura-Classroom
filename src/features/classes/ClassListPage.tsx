@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LoadingState } from '../../components/LoadingState';
+import { BookIcon, ChevronRightIcon, UsersIcon } from '../../components/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../workspaces/useWorkspace';
 import {
@@ -28,14 +29,20 @@ function ClassRows({
       {classes.map((classItem) => (
         <li key={classItem.id}>
           <Link className="class-row" to={`/app/classes/${classItem.id}`}>
+            <span className="class-row-icon" aria-hidden="true">
+              <BookIcon size={20} />
+            </span>
             <span className="class-row-name">{classItem.name}</span>
             <span className="class-row-meta">
               {classItem.status === 'archived' && (
                 <span className="status-label">Archived</span>
               )}
-              <span>{studentLabel(counts[classItem.id] ?? null)}</span>
+              <span className="class-row-students">
+                <UsersIcon size={16} aria-hidden="true" />
+                {studentLabel(counts[classItem.id] ?? null)}
+              </span>
               <span className="row-open" aria-hidden="true">
-                Open <span>→</span>
+                Open <ChevronRightIcon size={16} />
               </span>
             </span>
           </Link>

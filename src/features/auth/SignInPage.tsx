@@ -88,7 +88,10 @@ export function SignInPage({ mode = 'signin' }: { mode?: AuthMode }) {
     <main className="auth-page">
       <section className="auth-card" aria-labelledby="auth-title">
         <a className="wordmark" href="/" aria-label="Calcura Classroom home">
-          Calcura Classroom
+          <span className="workspace-brand-mark" aria-hidden="true">
+            ∫
+          </span>
+          <span>Calcura Classroom</span>
         </a>
         <h1 id="auth-title">
           {isSignup ? 'Create your free teacher account' : 'Teacher sign in'}

@@ -506,6 +506,15 @@ function AssignmentAnalyticsSection({
                         <td>
                           {student.completedProblemCount} /{' '}
                           {student.totalProblemCount}
+                          {student.totalProblemCount > 0 ? (
+                            <span className="progress-meter" aria-hidden="true">
+                              <span
+                                style={{
+                                  width: `${(student.completedProblemCount / student.totalProblemCount) * 100}%`,
+                                }}
+                              />
+                            </span>
+                          ) : null}
                           {student.lastActivityAt ? (
                             <small>
                               Last activity{' '}
@@ -535,7 +544,14 @@ function AssignmentAnalyticsSection({
                             ? ''
                             : ` · ${formatAnalyticsPercent(student.surrenderRate)}`}
                         </td>
-                        <td>{statusLabel(student.status)}</td>
+                        <td>
+                          <span
+                            className="student-status"
+                            data-status={student.status}
+                          >
+                            {statusLabel(student.status)}
+                          </span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

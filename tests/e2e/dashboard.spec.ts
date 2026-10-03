@@ -405,19 +405,25 @@ test('branded shell preserves keyboard navigation and readable contrast', async 
       ].map((element) =>
         ratio(getComputedStyle(element).color, outcome.backgroundColor),
       );
-      const track = getComputedStyle(
-        document.querySelector('.dashboard-outcome-track')!,
-      );
-      const fill = getComputedStyle(
-        document.querySelector('.dashboard-outcome-track > span')!,
-      );
+      const arcStroke = (selector: string) =>
+        getComputedStyle(document.querySelector(selector)!).stroke;
       return {
         text: [
           ...textRatios,
           ...outcomeTextRatios,
           ratio(active.color, active.backgroundColor),
         ],
-        chart: ratio(fill.backgroundColor, track.backgroundColor),
+        // The outcome ring arcs carry meaning, so each must stand apart from the panel they sit on.
+        chart: Math.min(
+          ratio(
+            arcStroke('.dashboard-outcome-arc-correct'),
+            outcome.backgroundColor,
+          ),
+          ratio(
+            arcStroke('.dashboard-outcome-arc-surrendered'),
+            outcome.backgroundColor,
+          ),
+        ),
         focus: ratio(active.outlineColor, active.backgroundColor),
         outline: active.outlineStyle,
       };
