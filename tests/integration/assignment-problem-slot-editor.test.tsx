@@ -11,6 +11,10 @@ import {
   type AssignmentProblemSlot,
 } from '../../src/features/assignments/assignmentProblemSlotService';
 
+vi.mock('../../src/features/assignments/calcuraPreviewTarget', () => ({
+  resolveCalcuraPreviewTarget: () => null,
+}));
+
 vi.mock('../../src/features/assignments/assignmentProblemSlotService', () => ({
   regenerateAssignmentProblemSlot: vi.fn(),
   regenerateUnlockedAssignmentProblemSlots: vi.fn(),
