@@ -137,7 +137,7 @@ function ClassCompletion({ classes }: { classes: DashboardClass[] }) {
   );
 }
 
-const RING_RADIUS = 48;
+const RING_RADIUS = 50;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 const RING_GAP = 3;
 

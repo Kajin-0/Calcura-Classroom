@@ -241,8 +241,10 @@
 .dashboard-chart-line a {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
   min-height: 28px;
   margin-block: -4px;
+  overflow-wrap: anywhere;
   font-weight: 600;
   letter-spacing: -0.01em;
   text-decoration: none;
@@ -333,9 +335,12 @@
   border-color: var(--color-on-dark-border);
   background: rgb(255 255 255 / 4%);
 }
+/* The figure is its own size container, so the centre text scales with the
+   ring and always keeps clear space inside the inner circle. */
 .dashboard-outcome-figure {
+  container-type: inline-size;
   position: relative;
-  width: min(100%, 184px);
+  width: min(100%, 216px);
   aspect-ratio: 1;
   margin: 0 auto var(--space-5);
 }
@@ -347,7 +352,7 @@
 }
 .dashboard-outcome-ring circle {
   fill: none;
-  stroke-width: 12;
+  stroke-width: 10;
 }
 .dashboard-outcome-ring-track {
   stroke: var(--color-navy-line);
@@ -363,21 +368,26 @@
   inset: 0;
   display: grid;
   place-content: center;
+  /* The heavy number outweighs the small label, so drop the group a few px to
+     balance its visual weight on the ring's centre. */
+  padding-top: 3cqw;
   text-align: center;
 }
 .dashboard-outcome-value {
   margin: 0;
-  font-size: clamp(2.25rem, 2rem + 0.8vw, 2.75rem);
+  font-size: clamp(1.5rem, 19cqw, 2.75rem);
   font-weight: 650;
-  letter-spacing: -0.05em;
+  letter-spacing: -0.04em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  /* Negative tracking trails the last glyph; nudge back so the ink is centred. */
+  translate: -0.02em 0;
 }
 .dashboard-outcome-subtitle {
-  max-width: 11ch;
-  margin: 6px auto 0;
+  max-width: 52cqw;
+  margin: 4px auto 0;
   color: var(--color-on-dark-muted);
-  font-size: 0.75rem;
+  font-size: clamp(0.6875rem, 5.6cqw, 0.8125rem);
   line-height: 1.3;
 }
 .dashboard-outcome-legend {
@@ -877,9 +887,12 @@
     grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
   }
 }
-@container dashboard (min-width: 1080px) {
-  .dashboard-secondary-grid {
-    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+/* Classes and technique performance stack full width: a four-row table beside a
+   seven-row meter list would leave a hollow card. The meters pair up instead. */
+@container dashboard (min-width: 720px) {
+  .dashboard-activity-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-8);
   }
 }
 /* A single-column outcome card lays its ring and legend side by side. */

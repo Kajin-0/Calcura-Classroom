@@ -168,6 +168,12 @@ dashboard-aggregate contract changed, and no data field or telemetry was added.
 - Completion is the featured KPI. Outcome quality is a navy panel with a ring chart
   (correct vs. surrendered arcs) whose legend and figures stay readable as text.
   Null denominators still show "—"; nothing is rounded into a false value.
+- The ring figure is its own size container: the centre value and label scale in
+  `cqw` units so they always clear the inner circle (checked at 100%, 81%, and 0%;
+  at least 20 px of clearance). The group sits a few px low to balance the heavy
+  number against its lighter label. Classes and technique performance stack full
+  width, with technique meters in two columns from 720 px, so no card is stretched
+  beside a taller neighbour. Long unbroken class names wrap inside their rows.
 - Entrance and meter-reveal motion runs once, only when motion is allowed, and
   never replays when the class filter changes. Reduced motion renders final state.
 
