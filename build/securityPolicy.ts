@@ -1,4 +1,4 @@
-import { resolveCalcuraPreviewTarget } from '../src/features/assignments/calcuraPreviewTarget';
+import { resolveCalcuraPreviewTarget } from '../src/features/assignments/calcuraPreviewTarget.ts';
 
 export function classroomSecurityPolicy(env: Record<string, string>): string {
   const connections = ["'self'"];

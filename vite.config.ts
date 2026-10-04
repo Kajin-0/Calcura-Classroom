@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
-import { classroomSecurityPolicy } from './build/securityPolicy';
+import { classroomSecurityPolicy } from './build/securityPolicy.ts';
 
 const pagesBasePath = process.env.PAGES_BASE_PATH?.trim() ?? '';
 const normalizedPagesBasePath = pagesBasePath.replace(/^\/+|\/+$/g, '');
