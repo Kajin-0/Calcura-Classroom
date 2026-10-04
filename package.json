@@ -8,6 +8,8 @@
     "npm": ">=10"
   },
   "scripts": {
+    "ops:export-user": "node scripts/ops/privacy-cli.ts export",
+    "ops:preflight-user-deletion": "node scripts/ops/privacy-cli.ts preflight",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",

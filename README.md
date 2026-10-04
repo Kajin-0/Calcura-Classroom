@@ -1,5 +1,17 @@
 # Calcura Classroom
 
+## Launch privacy operations
+
+Server/operator-only personal export and read-only deletion preflight are available
+through `npm run ops:export-user` and `npm run ops:preflight-user-deletion` (Node 24).
+Both require the exact verified user UUID/email and securely provisioned admin
+environment; there is no browser admin endpoint or automatic Auth deletion.
+See [Privacy implementation](docs/PRIVACY_IMPLEMENTATION.md),
+[request/export runbook](docs/PRIVACY_REQUEST_RUNBOOK.md),
+[billing-before-deletion](docs/ACCOUNT_DELETION_RUNBOOK.md),
+[backup/restore](docs/BACKUP_RESTORE_RUNBOOK.md), and
+[observable Auth settings](docs/AUTH_SETTINGS_LAUNCH_CHECK.md).
+
 Calcura Classroom is the teacher and institutional control plane for Calcura. It provides workspace dashboards, Stripe-backed Pro billing, versioned Guided assignments, and Pro problem-slot editing. Students solve through Calcura, which remains the only mathematics engine and stays free. Production Classroom schema/functions and the teacher-app host are separate deployment concerns; see [Production deployment preparation](docs/PRODUCTION_DEPLOYMENT.md). The Calcura student feature gate remains disabled by default unless separately activated.
 
 ## Repository responsibilities

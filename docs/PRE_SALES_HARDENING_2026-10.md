@@ -246,3 +246,14 @@ audit or feature campaign.
 - [Securing Edge Functions](https://supabase.com/docs/guides/functions/auth)
 - [No-policy advisor](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)
 - [Authenticated DEFINER advisor](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable)
+
+## Final launch operations layer
+
+The bounded 2026-10-04 legal/operations implementation adds read-only personal
+export/deletion preflight and reviewed request, billing-before-deletion and
+backup/restore procedures. See [Privacy implementation](PRIVACY_IMPLEMENTATION.md)
+for the provider inventory, actual data scope and runbook links. These procedures
+do not establish regulatory certification or approve under-13/district onboarding.
+No production export, deletion, database reset or Stripe transaction is part of
+this pass. Managed backup/PITR coverage and full Auth administration remain
+explicit dashboard verification items where management tools cannot expose them.

@@ -18,4 +18,6 @@ supabase/functions/.env
 !supabase/functions/.env.example
 
 *.log
+calcura-exports/
+calcura-backups/
 .DS_Store
