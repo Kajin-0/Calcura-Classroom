@@ -4,8 +4,9 @@ Reviewed: 2026-10-04. Server/operator use only; not a public self-service portal
 
 ## Receive, verify, classify
 
-Use the established Calcura contact form at https://calcura.study/contact/ once
-the owner confirms that its Formspree inbox is monitored for privacy requests.
+Brooks Invest LLC operates Calcura. The owner confirmed on 2026-10-04 that the
+established Formspree contact channel at https://calcura.study/contact/ is monitored
+for support, privacy, billing, account deletion and data export requests.
 Do not ask for passwords, OTP codes, session tokens or payment-card information.
 Record receipt date, request type and a minimal case reference in restricted
 operator records, not Git, public issues, CI artifacts or analytics.

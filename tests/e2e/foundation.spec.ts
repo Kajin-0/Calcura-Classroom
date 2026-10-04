@@ -1,6 +1,30 @@
 import { expect, test } from '@playwright/test';
 import { reviewSurface } from './ui-review';
 
+test('sign-in and signup expose production legal links without a consent checkbox', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const route of ['/signin', '/signup']) {
+    await page.goto(route);
+    for (const [name, href] of [
+      ['Privacy', 'https://calcura.study/privacy/'],
+      ['Terms', 'https://calcura.study/terms/'],
+      ['Contact', 'https://calcura.study/contact/'],
+    ]) {
+      const link = page.getByRole('link', { name, exact: true });
+      await expect(link).toBeVisible();
+      await expect(link).toHaveAttribute('href', href);
+      await link.focus();
+      await expect(link).toBeFocused();
+    }
+    await expect(page.getByRole('checkbox')).toHaveCount(0);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(390);
+  }
+});
+
 test('loads the classroom sign-in route with the isolated test configuration', async ({
   page,
 }) => {

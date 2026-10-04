@@ -1,6 +1,12 @@
 # Privacy implementation and provider inventory
 
 Reviewed: 2026-10-04. Factual companion to public policies, not legal certification.
+Owner-approved operator/controller: Brooks Invest LLC. The owner confirmed the
+existing https://calcura.study/contact/ channel is monitored for support, privacy,
+billing, account deletion and data export. Public policies: https://calcura.study/privacy/
+and https://calcura.study/terms/, effective October 4, 2026. Approved refunds:
+“Fees are non-refundable except where required by law or where Calcura expressly
+states otherwise at purchase.” No operator tooling or data-lifecycle behavior changes.
 Current authority: [Pre-sales hardening](PRE_SALES_HARDENING_2026-10.md), deployed
 migrations, current application contracts and this operations pass. Older Phase
 1–8 documents describe historical pre-production states, not today's deployment.

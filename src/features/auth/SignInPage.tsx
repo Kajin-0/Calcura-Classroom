@@ -204,6 +204,12 @@ export function SignInPage({ mode = 'signin' }: { mode?: AuthMode }) {
               <a href="/signup">Create a free teacher account</a>.
             </>
           )}
+          <br />
+          <a href="https://calcura.study/privacy/">Privacy</a>
+          {' · '}
+          <a href="https://calcura.study/terms/">Terms</a>
+          {' · '}
+          <a href="https://calcura.study/contact/">Contact</a>
         </p>
       </section>
     </main>
