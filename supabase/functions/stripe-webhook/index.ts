@@ -76,10 +76,16 @@ runtime.serve(async (request) => {
   if (request.method !== 'POST')
     return new Response('Method not allowed', { status: 405 });
 
-  const rawBody = await request.text();
   const signature = request.headers.get('stripe-signature');
   if (!signature)
     return new Response('Invalid Stripe signature', { status: 400 });
+
+  let rawBody: string;
+  try {
+    rawBody = await request.text();
+  } catch {
+    return new Response('Invalid Stripe request body', { status: 400 });
+  }
 
   let stripe: Stripe;
   let mode: StripeMode;

@@ -15,5 +15,5 @@
       ]
     }
   },
-  "include": ["../supabase/functions/billing-checkout/index.ts"]
+  "include": ["../supabase/functions/*/index.ts"]
 }

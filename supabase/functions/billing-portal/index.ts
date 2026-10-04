@@ -57,7 +57,7 @@ runtime.serve(async (request) => {
     const customer = await stripe.customers.retrieve(
       billing.stripe_customer_id,
     );
-    if (!stripeObjectMatchesMode(customer, mode)) {
+    if (customer.deleted || !stripeObjectMatchesMode(customer, mode)) {
       throw new Error('stripe_customer_mode_mismatch');
     }
     const session = await stripe.billingPortal.sessions.create({
