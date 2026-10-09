@@ -13,9 +13,8 @@ export function RequireSession() {
     );
   }
   if (!session) {
-    return (
-      <Navigate to="/signin" replace state={{ from: location.pathname }} />
-    );
+    const returnTo = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to="/signin" replace state={{ from: returnTo }} />;
   }
   return <Outlet />;
 }

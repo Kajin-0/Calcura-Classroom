@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   readSupabaseConfig,
   supabaseConfigMessage,
@@ -12,11 +12,14 @@ import {
 } from './authService';
 import { useAuthSession } from './useAuthSession';
 import { CalcuraIntegralMark } from '../../components/CalcuraMark';
+import { authReturnDestinationFromState } from './authReturnDestination';
 
 type AuthMode = 'signin' | 'signup';
 
 export function SignInPage({ mode = 'signin' }: { mode?: AuthMode }) {
   const { session, initializationError } = useAuthSession();
+  const location = useLocation();
+  const returnTo = authReturnDestinationFromState(location.state);
   const config = readSupabaseConfig();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -37,7 +40,7 @@ export function SignInPage({ mode = 'signin' }: { mode?: AuthMode }) {
     return () => window.clearInterval(interval);
   }, [cooldownUntil]);
 
-  if (session) return <Navigate to="/app" replace />;
+  if (session) return <Navigate to={returnTo} replace />;
 
   const cooldownSeconds = Math.max(0, Math.ceil((cooldownUntil - now) / 1_000));
   const handleSend = async (event: FormEvent<HTMLFormElement>) => {
@@ -196,12 +199,19 @@ export function SignInPage({ mode = 'signin' }: { mode?: AuthMode }) {
         <p className="auth-footnote">
           {isSignup ? (
             <>
-              Already have an account? <a href="/signin">Teacher sign in</a>.
+              Already have an account?{' '}
+              <Link to="/signin" state={{ from: returnTo }}>
+                Teacher sign in
+              </Link>
+              .
             </>
           ) : (
             <>
               New to Calcura Classroom?{' '}
-              <a href="/signup">Create a free teacher account</a>.
+              <Link to="/signup" state={{ from: returnTo }}>
+                Create a free teacher account
+              </Link>
+              .
             </>
           )}
           <br />

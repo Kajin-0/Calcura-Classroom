@@ -7,8 +7,10 @@ Classroom uses the same Supabase project and Auth users as Calcura. Do not creat
 ## Current flow
 
 ```text
-Email → send OTP → enter six digits → verify email OTP → /app
+Email → send OTP → enter six digits → verify email OTP → intended /app route (default /app)
 ```
+
+Protected-route redirects preserve pathname, query, and hash in router location state. Sign-in and sign-up forward the same validated internal `/app` destination through OTP; missing or unsafe return state falls back to `/app`. URL query parameters do not supply return destinations.
 
 The client uses `signInWithOtp` with `shouldCreateUser: true`, then `verifyOtp` with `type: 'email'`. Supabase persists and refreshes the session. Auth state changes are subscribed through the Supabase client. Classroom does not use passwords, OAuth, or magic-link URL navigation in this foundation.
 
