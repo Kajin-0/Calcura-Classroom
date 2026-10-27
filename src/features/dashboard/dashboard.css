@@ -98,7 +98,11 @@
 }
 .dashboard-kpi-featured {
   border-color: var(--color-accent-border);
-  background: linear-gradient(155deg, var(--color-accent-soft), var(--color-surface) 72%);
+  background: linear-gradient(
+    155deg,
+    var(--color-accent-soft),
+    var(--color-surface) 72%
+  );
 }
 .dashboard-kpi-featured .dashboard-kpi-icon {
   background: var(--color-accent);
@@ -749,7 +753,11 @@
   padding: var(--space-8);
   border: 1px solid var(--color-accent-border);
   border-radius: var(--radius-panel);
-  background: linear-gradient(135deg, var(--color-accent-soft), var(--color-surface) 62%);
+  background: linear-gradient(
+    135deg,
+    var(--color-accent-soft),
+    var(--color-surface) 62%
+  );
   box-shadow: var(--shadow-xs);
 }
 .dashboard-first-class > div,
