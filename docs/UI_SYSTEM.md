@@ -147,13 +147,15 @@ dashboard-aggregate contract changed, and no data field or telemetry was added.
   stylesheet consume them.
 - Typography is Inter Variable, self-hosted through `@fontsource-variable/inter`
   (no external font request). Numbers in metrics use tabular figures.
-- Semantic color is fixed: **blue = progress/completion**, **green = correct and
-  accuracy**, **amber = surrendered**, **red = destructive or failed**. Plan and
-  lifecycle labels stay neutral; Free is never presented as lesser.
+- Semantic color is fixed: **ink = progress/completion**, **green = correct and
+  accuracy**, **amber = surrendered**, **red = destructive or failed**. The ink
+  is Calcura's near-black (`#1e2130` / `#12131e`) on cool gray paper
+  (`#f9f8fb`). Plan and lifecycle labels stay neutral; Free is never presented
+  as lesser.
 
 ### Shell
 
-- At 900 px and wider the shell is a fixed navy left rail (brand, navigation, and
+- At 900 px and wider the shell is a fixed near-black left rail (brand, navigation, and
   an account card with the plan label and Sign out). Below 900 px it becomes a
   compact top bar with a fixed bottom tab bar; content reserves room for it and
   for the safe-area inset. The skip link, `aria-current`, and the brand-to-Dashboard
@@ -172,7 +174,7 @@ dashboard-aggregate contract changed, and no data field or telemetry was added.
 - Layout responds to its own width with container queries, not only the viewport,
   so it stays correct beside the rail. Rows keep real table/definition semantics;
   the ratio columns collapse into labelled stacked rows on narrow containers.
-- Completion is the featured KPI. Outcome quality is a navy panel with a ring chart
+- Completion is the featured KPI. Outcome quality is an ink panel with a ring chart
   (correct vs. surrendered arcs) whose legend and figures stay readable as text.
   Null denominators still show "—"; nothing is rounded into a false value.
 - The ring figure is its own size container: the centre value and label scale in
@@ -189,5 +191,5 @@ dashboard-aggregate contract changed, and no data field or telemetry was added.
 - Touch targets are 44 px on coarse pointers, including form controls, summaries,
   and row action links. Actions are never hover-only. Tables keep contained
   horizontal scrolling. No horizontal page overflow from 320 to 1920 px.
-- Text contrast is at least 4.5:1 on the rail and navy panels; focus outlines and
+- Text contrast is at least 4.5:1 on the rail and ink panels; focus outlines and
   chart arcs are at least 3:1 against their surface.

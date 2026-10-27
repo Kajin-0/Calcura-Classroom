@@ -1,8 +1,8 @@
 /*
  * Calcura Classroom design tokens.
- * Palette follows the public Calcura identity (ink navy, accent blue, cool greys).
+ * Palette follows the Calcura app: near-black ink and cool gray paper.
  * Semantic hues have fixed meanings across the app:
- *   blue  = progress / completion      green = correct / accuracy
+ *   ink   = progress / completion      green = correct / accuracy
  *   amber = surrendered work           red   = destructive or failed
  * Every text and graphic pair used with these tokens is checked in docs/UI_SYSTEM.md.
  */
@@ -17,29 +17,29 @@
     ui-monospace, 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono',
     monospace;
 
-  /* Ink and text */
-  --color-ink: #0b1730;
-  --color-ink-secondary: #1f2d44;
-  --color-muted: #4f607a;
-  --color-subtle: #5d6e87;
+  /* Ink and text. Matches .calcura-material in the Calcura app. */
+  --color-ink: #1e2130;
+  --color-ink-secondary: #3f3c4d;
+  --color-muted: #716b7d;
+  --color-subtle: #575263;
 
   /* Surfaces and lines */
-  --color-canvas: #f3f6fb;
+  --color-canvas: #f9f8fb;
   --color-surface: #fff;
-  --color-surface-alt: #f8fafd;
-  --color-quiet: #eef3f9;
-  --color-hover: #f6f9fd;
-  --color-border: #e0e7f1;
-  --color-border-strong: #c9d5e5;
+  --color-surface-alt: #f9f8fb;
+  --color-quiet: #f3f1f6;
+  --color-hover: #f3f1f6;
+  --color-border: #e7e4ec;
+  --color-border-strong: #d5d0dc;
 
   /* Accent (progress, selection, focus) */
-  --color-accent: #1769e0;
-  --color-accent-strong: #0f54ba;
-  --color-accent-soft: #eaf2fe;
-  --color-accent-border: #c6dbfa;
-  --color-chart: #1769e0;
-  --color-chart-start: #3a86f0;
-  --color-focus: #1769e0;
+  --color-accent: #1e2130;
+  --color-accent-strong: #12131e;
+  --color-accent-soft: #f3f1f6;
+  --color-accent-border: #d5d0dc;
+  --color-chart: #1e2130;
+  --color-chart-start: #3f3c4d;
+  --color-focus: #1e2130;
 
   /* Semantic */
   --color-positive: #0f7a55;
@@ -55,16 +55,16 @@
   --color-danger-border: #f2c9c4;
 
   /* Dark shell and hero surfaces */
-  --color-navy: #0b1730;
-  --color-navy-deep: #08122a;
-  --color-navy-raised: #112447;
-  --color-navy-line: #223a68;
+  --color-navy: #12131e;
+  --color-navy-deep: #0e0f18;
+  --color-navy-raised: #1e2130;
+  --color-navy-line: #2c2c3c;
   --color-on-dark: #fff;
-  --color-on-dark-muted: #b9c7dd;
-  --color-on-dark-border: #2d4673;
+  --color-on-dark-muted: #a29cad;
+  --color-on-dark-border: #2c2c3c;
   --color-on-dark-focus: #fff;
-  --color-nav-active: #17305c;
-  --color-nav-hover: #12264a;
+  --color-nav-active: #1e2130;
+  --color-nav-hover: #2c2c3c;
   --color-on-dark-correct: #4fd8ab;
   --color-on-dark-caution: #f5bb55;
 
@@ -86,12 +86,12 @@
   --radius-lg: 16px;
 
   /* Elevation */
-  --shadow-xs: 0 1px 2px rgb(11 23 48 / 6%);
-  --shadow-sm: 0 1px 2px rgb(11 23 48 / 6%), 0 4px 12px -2px rgb(11 23 48 / 8%);
+  --shadow-xs: 0 1px 2px rgb(18 19 30 / 6%);
+  --shadow-sm: 0 1px 2px rgb(18 19 30 / 6%), 0 4px 12px -2px rgb(18 19 30 / 8%);
   --shadow-md:
-    0 2px 4px rgb(11 23 48 / 5%), 0 12px 32px -8px rgb(11 23 48 / 14%);
+    0 2px 4px rgb(18 19 30 / 5%), 0 12px 32px -8px rgb(18 19 30 / 14%);
   --shadow-elevated: var(--shadow-md);
-  --shadow-focus: 0 0 0 3px rgb(23 105 224 / 28%);
+  --shadow-focus: 0 0 0 3px rgb(30 33 48 / 28%);
 
   /* Layout */
   --rail-width: 248px;
